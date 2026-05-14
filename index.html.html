@@ -1,0 +1,3458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>RajPrep AI v10 — Interview Copilot</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ════════════════════════════════
+   DESIGN TOKENS
+════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+
+:root{
+  /* Dark theme (desktop) */
+  --bg:#0c0c0e;--surface:#141416;--surface2:#1c1c1f;--surface3:#242428;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#ececf0;--text2:#9898a6;--text3:#52525e;
+  --accent:#6c63ff;--accent2:#8b85ff;--accent-bg:rgba(108,99,255,0.1);
+  --red:#ff6b6b;--green:#4ecca3;--amber:#ffd166;--blue:#4fc3f7;
+  --r:14px;--rs:10px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Mobile light theme — Parakeet style */
+@media(max-width:768px){
+  :root{
+    --bg:#f5f5f7;--surface:#ffffff;--surface2:#f0f0f2;--surface3:#e8e8ec;
+    --border:rgba(0,0,0,0.06);--border2:rgba(0,0,0,0.1);
+    --text:#1a1a2e;--text2:#5a5a7a;--text3:#9898b2;
+    --accent:#6c63ff;--accent2:#5a52e8;--accent-bg:rgba(108,99,255,0.08);
+  }
+}
+
+html,body{height:100%;overflow:hidden;overscroll-behavior:none;scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column}
+
+/* Allow text selection in inputs and contenteditable on mobile */
+input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text}
+
+/* ════════════════════════════════
+   DESKTOP LAYOUT — Parakeet Chat Style
+════════════════════════════════ */
+.app-shell{
+  display:flex;
+  flex-direction:column;
+  width:100%;
+  height:100vh;
+  overflow:hidden;
+  background:var(--bg);
+  position:relative;
+}
+
+/* ── Desktop Header ── */
+.d-header{
+  height:56px;
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  padding:0 20px;
+  gap:12px;
+  flex-shrink:0;
+  z-index:50;
+  position:relative;
+}
+
+.d-logo-mark{
+  width:32px;height:32px;border-radius:10px;
+  background:linear-gradient(135deg,var(--accent),#a855f7);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.d-logo-mark svg{width:17px;height:17px;fill:#fff}
+.d-app-name{font-size:14px;font-weight:700;letter-spacing:-.4px;color:var(--text)}
+.d-app-sub{font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;letter-spacing:.02em}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--red);animation:pulse-live 1.2s ease-in-out infinite;opacity:0;margin-left:4px;flex-shrink:0}
+@keyframes pulse-live{0%,100%{opacity:1}50%{opacity:.2}}
+.d-spacer{flex:1}
+.d-header-actions{display:flex;align-items:center;gap:7px}
+.hdr-btn{
+  background:var(--surface2);border:1px solid var(--border2);color:var(--text3);
+  font-size:10px;font-family:'JetBrains Mono',monospace;cursor:pointer;
+  padding:5px 10px;border-radius:8px;transition:all .15s;white-space:nowrap;
+}
+.hdr-btn:hover{border-color:var(--accent2);color:var(--accent2);background:var(--accent-bg)}
+.hdr-btn-settings{
+  background:var(--surface2);border-color:var(--border2);color:var(--text2);
+  display:flex;align-items:center;gap:5px;font-size:11px;
+  padding:5px 12px;border-radius:8px;
+}
+.hdr-btn-settings svg{width:12px;height:12px;fill:currentColor}
+.hdr-btn-settings:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+
+.tts-toggle{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;cursor:pointer;user-select:none}
+.toggle-track{width:28px;height:15px;border-radius:8px;background:var(--surface3);position:relative;transition:background .2s;flex-shrink:0}
+.toggle-track.on{background:var(--accent)}
+.toggle-thumb{position:absolute;top:2px;left:2px;width:11px;height:11px;border-radius:50%;background:#fff;transition:left .2s}
+.toggle-track.on .toggle-thumb{left:15px}
+.d-ans-count{font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;min-width:24px;text-align:center}
+
+/* ── Right Panel (full-width chat) ── */
+.right-panel{
+  flex:1;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  background:var(--bg);
+}
+
+/* ── Answers Area ── */
+.answers-area{
+  flex:1;
+  overflow-y:auto;
+  padding:28px 20px 110px;
+  scroll-behavior:smooth;
+}
+.answers-area::-webkit-scrollbar{width:4px}
+.answers-area::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+/* Constrain answer cards to readable width */
+.answers-area > .answer-card,
+.answers-area > .empty-state{
+  max-width:860px;
+  margin-left:auto;
+  margin-right:auto;
+}
+
+/* Empty state */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:14px;text-align:center;padding:40px}
+.empty-icon{width:52px;height:52px;border-radius:16px;background:linear-gradient(135deg,var(--accent),#a855f7);display:flex;align-items:center;justify-content:center}
+.empty-icon svg{width:26px;height:26px;fill:#fff}
+.empty-state h2{font-size:17px;font-weight:600;letter-spacing:-.4px}
+.empty-state p{font-size:12px;color:var(--text2);max-width:280px;line-height:1.6}
+.chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:4px}
+.chip{background:var(--surface);border:1px solid var(--border2);color:var(--text2);font-size:11px;padding:5px 11px;border-radius:20px;cursor:pointer;transition:all .15s}
+.chip:hover,.chip:active{border-color:var(--accent);color:var(--accent2);background:var(--accent-bg)}
+
+/* Answer cards */
+.answer-card{margin-bottom:28px;animation:fadeUp .2s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.q-bubble{display:flex;justify-content:flex-end;margin-bottom:10px}
+.q-text{background:var(--surface2);border:1px solid var(--border2);padding:9px 13px;border-radius:var(--r) var(--r) 4px var(--r);max-width:85%;font-size:13px;line-height:1.5;color:var(--text2)}
+.q-type-badge{font-size:9px;padding:1px 5px;border-radius:4px;font-family:'JetBrains Mono',monospace;background:var(--surface3);color:var(--text3);margin-left:6px;vertical-align:middle}
+.a-wrap{display:flex;flex-direction:column;gap:8px}
+.a-header{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.a-avatar{width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#a855f7);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.a-avatar svg{width:12px;height:12px;fill:#fff}
+.a-tag{font-size:9px;padding:2px 6px;border-radius:8px;font-family:'JetBrains Mono',monospace;background:rgba(255,209,102,.12);color:var(--amber)}
+.a-tag.res{background:rgba(78,204,163,.1);color:var(--green)}
+.a-tag.ctx{background:rgba(79,195,247,.1);color:var(--blue)}
+.btn-copy{margin-left:auto;background:none;border:1px solid var(--border);color:var(--text3);font-size:9px;font-family:'JetBrains Mono',monospace;cursor:pointer;padding:3px 7px;border-radius:5px;transition:all .15s;display:flex;align-items:center;gap:4px}
+.btn-copy:hover{border-color:var(--green);color:var(--green)}
+.btn-copy svg{width:10px;height:10px;fill:currentColor}
+.btn-tts-play{background:none;border:1px solid var(--border);color:var(--text3);font-size:9px;font-family:'JetBrains Mono',monospace;cursor:pointer;padding:3px 7px;border-radius:5px;transition:all .15s;display:flex;align-items:center;gap:4px}
+.btn-tts-play:hover{border-color:var(--accent2);color:var(--accent2)}
+.btn-tts-play.speaking{border-color:var(--red);color:var(--red)}
+.btn-tts-play svg{width:10px;height:10px;fill:currentColor}
+
+/* Answer body */
+.a-body{padding-left:29px;font-size:14px;line-height:1.8;color:var(--text)}
+.a-body p{margin-bottom:10px}
+.a-body p:last-child{margin-bottom:0}
+.a-body p.intro{margin-bottom:12px}
+.a-body strong{color:var(--accent2);font-weight:500}
+.a-body em{color:var(--text2);font-style:italic}
+.a-body code{font-family:'JetBrains Mono',monospace;font-size:11px;background:var(--surface2);border:1px solid var(--border2);padding:1px 5px;border-radius:4px;color:var(--accent2)}
+.a-body pre{background:#090909;border:1px solid var(--border2);border-radius:var(--rs);padding:12px 14px;overflow-x:auto;margin:10px 0;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.7;color:var(--green);position:relative}
+.a-body pre code{background:none;border:none;padding:0;color:var(--green);font-size:12px}
+.pre-copy{position:absolute;top:6px;right:8px;background:var(--surface2);border:1px solid var(--border2);color:var(--text3);font-size:9px;font-family:'JetBrains Mono',monospace;cursor:pointer;padding:2px 6px;border-radius:4px;transition:all .15s}
+.pre-copy:hover{color:var(--green);border-color:var(--green)}
+.a-body ol{list-style:none;padding:0;margin:4px 0 12px;display:flex;flex-direction:column;gap:8px;counter-reset:lc}
+.a-body ol li{display:flex;gap:9px;align-items:flex-start;font-size:13px;line-height:1.6;counter-increment:lc}
+.a-body ol li::before{content:counter(lc);min-width:20px;height:20px;background:var(--accent-bg);border:1px solid var(--accent);color:var(--accent2);border-radius:5px;font-size:10px;font-family:'JetBrains Mono',monospace;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.a-body ol li strong{color:var(--accent2);font-weight:500}
+.a-body table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px}
+.a-body table th{background:var(--surface2);color:var(--accent2);font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;text-align:left;padding:6px 10px;border:1px solid var(--border2)}
+.a-body table td{padding:6px 10px;border:1px solid var(--border);color:var(--text);vertical-align:top}
+.a-body table tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+
+.skeleton{display:flex;flex-direction:column;gap:8px;padding-left:29px;padding-top:4px}
+.skel-line{height:12px;border-radius:6px;background:linear-gradient(90deg,var(--surface2) 25%,var(--surface3) 50%,var(--surface2) 75%);background-size:200% 100%;animation:shimmer 1.4s ease-in-out infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.cursor{display:inline-block;width:2px;height:14px;background:var(--accent2);margin-left:2px;vertical-align:text-bottom;animation:blink 1s step-end infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* ── Floating Transcript Panel ── */
+.d-tx-float{
+  position:fixed;
+  bottom:76px;
+  left:20px;
+  width:300px;
+  z-index:90;
+  background:rgba(14,14,16,0.96);
+  border:1px solid var(--border2);
+  border-radius:16px;
+  padding:11px 13px;
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  box-shadow:0 12px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.04);
+  display:flex;
+  flex-direction:column;
+  gap:9px;
+  transition:box-shadow .2s;
+}
+.d-tx-float:focus-within{
+  border-color:rgba(108,99,255,.4);
+  box-shadow:0 12px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(108,99,255,.25);
+}
+
+.d-tx-float-hdr{
+  display:flex;
+  align-items:center;
+  gap:7px;
+}
+.d-tx-float-hdr .mic-led{
+  width:7px;height:7px;border-radius:50%;background:var(--text3);
+  flex-shrink:0;transition:background .3s;
+}
+.d-tx-float-hdr .mic-led.on{background:var(--red);animation:pr 1.2s ease-in-out infinite}
+.d-tx-float-hdr .mic-led.paused{background:var(--amber)}
+@keyframes pr{0%,100%{opacity:1}50%{opacity:.3}}
+.d-tx-float-hdr .mic-lbl{
+  font-size:10px;color:var(--text3);
+  font-family:'JetBrains Mono',monospace;
+  flex:1;
+}
+.d-tx-float-hdr .tx-chars{
+  font-size:9px;color:var(--text3);
+  font-family:'JetBrains Mono',monospace;
+}
+
+.d-tx-float .transcript-text{
+  min-height:52px;
+  max-height:90px;
+  overflow-y:auto;
+  background:rgba(255,255,255,.035);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;
+  padding:9px 11px;
+  font-size:13px;
+  line-height:1.55;
+  color:var(--text);
+  outline:none;
+  word-break:break-word;
+  transition:border-color .2s;
+}
+.d-tx-float .transcript-text::-webkit-scrollbar{width:3px}
+.d-tx-float .transcript-text::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.d-tx-float .transcript-text:focus,
+.d-tx-float .transcript-text.listening{border-color:rgba(108,99,255,.5)}
+.d-tx-float .transcript-text:empty::before{content:attr(data-ph);color:var(--text3);pointer-events:none;font-size:12px}
+.d-tx-float .interim{color:var(--text3);font-style:italic}
+
+.d-tx-float .memory-bar{
+  display:flex;align-items:center;gap:6px;
+}
+.d-tx-float .memory-label{font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace}
+.d-tx-float .memory-dots{display:flex;gap:3px}
+.d-tx-float .mem-dot{width:5px;height:5px;border-radius:50%;background:var(--border2);transition:background .3s}
+.d-tx-float .mem-dot.used{background:var(--accent)}
+
+/* ── Bottom Controls Bar ── */
+.d-bottom-bar{
+  position:fixed;
+  bottom:0;left:0;right:0;
+  height:68px;
+  background:var(--surface);
+  border-top:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  padding:0 20px;
+  z-index:100;
+  box-shadow:0 -4px 20px rgba(0,0,0,.25);
+}
+
+.d-bottom-bar .btn-mic{
+  display:flex;align-items:center;gap:7px;
+  padding:0 16px;height:44px;
+  border-radius:12px;
+  border:1px solid var(--border2);
+  background:var(--surface2);
+  color:var(--text2);
+  font-size:12px;font-weight:500;
+  cursor:pointer;white-space:nowrap;
+  transition:all .15s;
+  flex-shrink:0;
+  font-family:'Inter',sans-serif;
+}
+.d-bottom-bar .btn-mic:hover{border-color:var(--accent2);color:var(--accent2);background:var(--accent-bg)}
+.d-bottom-bar .btn-mic.on{background:rgba(255,107,107,.1);border-color:var(--red);color:var(--red)}
+.d-bottom-bar .btn-mic svg{width:16px;height:16px;fill:currentColor;flex-shrink:0}
+
+.d-gen-btn{
+  height:44px;
+  padding:0 28px;
+  border-radius:12px;
+  border:none;
+  background:linear-gradient(135deg,#6c63ff,#a855f7);
+  color:#fff;
+  font-size:14px;font-weight:600;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  transition:all .15s;
+  box-shadow:0 4px 20px rgba(108,99,255,.4);
+  min-width:180px;
+  font-family:'Inter',sans-serif;
+  letter-spacing:-.2px;
+}
+.d-gen-btn:hover{box-shadow:0 6px 28px rgba(108,99,255,.55);transform:translateY(-1px)}
+.d-gen-btn:active{transform:translateY(0);box-shadow:0 2px 10px rgba(108,99,255,.3)}
+.d-gen-btn:disabled{background:var(--surface3);color:var(--text3);cursor:not-allowed;box-shadow:none;transform:none}
+.d-gen-btn svg{width:16px;height:16px;fill:currentColor}
+
+.d-bottom-bar .btn-clear-tx{
+  width:44px;height:44px;
+  border-radius:12px;
+  border:1px solid var(--border2);
+  background:var(--surface2);
+  color:var(--text3);
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+  transition:all .15s;
+}
+.d-bottom-bar .btn-clear-tx:hover{border-color:var(--red);color:var(--red);background:rgba(255,107,107,.08)}
+.d-bottom-bar .btn-clear-tx svg{width:16px;height:16px;fill:currentColor}
+
+.d-status-bar{
+  position:fixed;
+  bottom:74px;
+  right:20px;
+  font-size:10px;
+  font-family:'JetBrains Mono',monospace;
+  color:var(--text3);
+  z-index:95;
+  pointer-events:none;
+  transition:color .2s;
+}
+.d-status-bar.active{color:var(--accent2)}
+.d-status-bar.error{color:var(--red)}
+.d-status-bar.ok{color:var(--green)}
+
+/* ── Desktop Settings Panel ── */
+.d-settings-overlay{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.5);
+  z-index:200;
+  opacity:0;pointer-events:none;
+  transition:opacity .25s;
+  backdrop-filter:blur(3px);
+}
+.d-settings-overlay.open{opacity:1;pointer-events:auto}
+
+.d-settings-panel{
+  position:fixed;
+  top:0;right:0;bottom:0;
+  width:340px;
+  background:var(--surface);
+  border-left:1px solid var(--border2);
+  z-index:201;
+  transform:translateX(100%);
+  transition:transform .3s cubic-bezier(.32,.72,0,1);
+  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+  box-shadow:-8px 0 40px rgba(0,0,0,.4);
+}
+.d-settings-panel.open{transform:translateX(0)}
+
+.d-settings-panel::-webkit-scrollbar{width:4px}
+.d-settings-panel::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+.d-settings-hdr{
+  padding:16px 18px 12px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;
+  background:var(--surface);
+  z-index:1;
+  flex-shrink:0;
+}
+.d-settings-title{font-size:14px;font-weight:600;color:var(--text)}
+.d-settings-close{
+  width:28px;height:28px;
+  border-radius:8px;
+  border:1px solid var(--border2);
+  background:var(--surface2);
+  color:var(--text3);
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;
+  transition:all .15s;
+}
+.d-settings-close:hover{border-color:var(--red);color:var(--red)}
+
+/* Settings sections (reuse existing left-panel styles) */
+.left-section{padding:12px 18px;border-bottom:1px solid var(--border)}
+.sec-title{font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
+
+.key-wrap{display:flex;gap:6px;align-items:center}
+.key-input{flex:1;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:11px;padding:7px 10px;border-radius:var(--rs);outline:none}
+.key-input:focus{border-color:var(--accent)}
+.key-link{font-size:10px;color:var(--accent2);text-decoration:none;white-space:nowrap}
+
+.model-row{display:flex;gap:4px;flex-wrap:wrap}
+.model-btn{flex:1;min-width:60px;padding:6px 4px;border-radius:var(--rs);border:1px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:9px;font-family:'JetBrains Mono',monospace;cursor:pointer;transition:all .15s;text-align:center;line-height:1.4}
+.model-btn.active{background:var(--accent-bg);border-color:var(--accent);color:var(--accent2)}
+.ollama-url{width:100%;margin-top:6px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:10px;padding:5px 8px;border-radius:var(--rs);outline:none;display:none}
+.ollama-url.show{display:block}
+
+.mode-row{display:flex;gap:4px}
+.mode-btn{flex:1;padding:6px 4px;border-radius:var(--rs);border:1px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:10px;font-family:'JetBrains Mono',monospace;cursor:pointer;transition:all .15s;text-align:center}
+.mode-btn.active{background:rgba(255,209,102,.1);border-color:var(--amber);color:var(--amber)}
+
+.resume-zone{border:1.5px dashed var(--border2);border-radius:var(--rs);padding:8px 11px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:8px;background:var(--surface2)}
+.resume-zone:hover{border-color:var(--accent);background:var(--accent-bg)}
+.resume-zone.loaded{border-color:var(--green);border-style:solid;background:rgba(78,204,163,.05)}
+.resume-zone svg{width:13px;height:13px;fill:var(--text3);flex-shrink:0}
+.resume-zone.loaded svg{fill:var(--green)}
+.resume-zone-text{font-size:11px;color:var(--text3);flex:1}
+.resume-zone.loaded .resume-zone-text{color:var(--green)}
+#resumeFile,#docFiles{display:none}
+.btn-rm{background:none;border:none;color:var(--red);font-size:11px;cursor:pointer;padding:2px 5px;border-radius:4px;display:none;font-family:'JetBrains Mono',monospace}
+.btn-rm.show{display:inline}
+.resume-skills{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.skill-tag{font-size:9px;padding:2px 6px;border-radius:10px;background:var(--accent-bg);border:1px solid rgba(108,99,255,.2);color:var(--accent2);font-family:'JetBrains Mono',monospace}
+
+.jd-textarea{width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:'Inter',sans-serif;font-size:11px;padding:7px 10px;border-radius:var(--rs);outline:none;resize:none;min-height:60px;line-height:1.5}
+.jd-textarea:focus{border-color:var(--accent)}
+.jd-hint{font-size:9px;color:var(--text3);margin-top:4px;line-height:1.4}
+
+.doc-list{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+.doc-item{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:4px 8px;font-size:10px;color:var(--text2)}
+.doc-item svg{width:10px;height:10px;fill:var(--green);flex-shrink:0}
+.doc-item .doc-rm{margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:10px;padding:0 2px}
+.doc-item .doc-rm:hover{color:var(--red)}
+
+/* Export buttons in settings */
+.d-export-row{display:flex;gap:6px;padding:12px 18px}
+.d-export-btn{flex:1;height:36px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-size:11px;font-family:'JetBrains Mono',monospace;cursor:pointer;transition:all .15s}
+.d-export-btn:hover{border-color:var(--accent2);color:var(--accent2)}
+
+/* Toast */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;font-size:12px;font-family:'Inter',sans-serif;padding:9px 18px;border-radius:20px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+.toast.show{opacity:1}
+
+/* ════════════════════════════════
+   MOBILE LAYOUT — Parakeet Style
+   Completely replaces desktop layout
+   on screens <= 768px
+════════════════════════════════ */
+@media(max-width:768px){
+
+  html,body{height:100%;overflow:hidden;background:var(--bg)}
+
+  /* Hide desktop panels */
+  .app-shell{display:none !important}
+  .d-settings-overlay,.d-settings-panel{display:none !important}
+
+  /* Mobile shell is always visible */
+  .mobile-shell{display:flex !important}
+
+  /* Toast position on mobile */
+  .toast{bottom:120px}
+}
+
+/* Mobile shell — hidden on desktop */
+.mobile-shell{
+  display:none;
+  flex-direction:column;
+  height:100vh;
+  height: 100dvh;
+  background:var(--bg);
+  overflow:hidden;
+  position:relative;
+}
+
+/* ── MOBILE HEADER ── */
+.m-header{
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:12px 16px;
+  display:flex;align-items:center;gap:10px;
+  flex-shrink:0;
+  position:relative;
+  z-index:10;
+}
+.m-logo{
+  width:32px;height:32px;border-radius:10px;
+  background:linear-gradient(135deg,var(--accent),#a855f7);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.m-logo svg{width:17px;height:17px;fill:#fff}
+.m-title{font-size:15px;font-weight:700;letter-spacing:-.4px;color:var(--text)}
+.m-status-pill{
+  display:flex;align-items:center;gap:5px;
+  background:var(--surface2);border:1px solid var(--border2);
+  padding:4px 10px;border-radius:20px;
+  font-size:10px;color:var(--text2);
+  font-family:'Inter',sans-serif;
+}
+.m-status-pill .m-led{width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0;transition:background .3s}
+.m-status-pill .m-led.on{background:var(--red);animation:pr 1.2s ease-in-out infinite}
+.m-status-pill .m-led.ok{background:var(--green)}
+.m-timer{font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-left:auto}
+.m-settings-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.m-settings-btn svg{width:16px;height:16px;fill:var(--text2)}
+
+/* ── MOBILE SCROLL AREA ── */
+.m-scroll{
+  flex:1;overflow-y:auto;overflow-x:hidden;
+  padding:0 0 8px 0;
+  -webkit-overflow-scrolling:touch;
+  scroll-behavior:smooth;
+}
+.m-scroll::-webkit-scrollbar{display:none}
+
+/* ── MOBILE TRANSCRIPT BOX ── */
+.m-tx-section{
+  padding:12px 16px 8px;
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.m-tx-label{
+  font-size:10px;color:var(--text3);
+  font-family:'JetBrains Mono',monospace;
+  margin-bottom:6px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.m-tx-box{
+  width:100%;min-height:40px;max-height:70px;
+  background:var(--surface2);
+  border:1.5px solid var(--border2);
+  border-radius:12px;padding:8px 14px;
+  font-size:14px;line-height:1.5;color:var(--text);
+  outline:none;word-break:break-word;
+  transition:border-color .2s;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  font-family:'Inter',sans-serif;
+}
+.m-tx-box.listening{border-color:var(--accent)}
+.m-tx-box:empty::before{content:attr(data-ph);color:var(--text3);pointer-events:none;font-size:14px}
+
+/* ── MOBILE ANSWERS ── */
+.m-answers-header{
+  padding:10px 16px 6px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.m-answers-title{font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.06em}
+.m-clear-btn{font-size:10px;color:var(--text3);background:none;border:none;cursor:pointer;font-family:'JetBrains Mono',monospace;padding:3px 6px}
+
+.m-answer-card{
+  margin:0 12px 16px;
+  background:var(--surface);
+  border-radius:16px;
+  overflow:hidden;
+  box-shadow:0 2px 12px rgba(0,0,0,.06);
+  border:1px solid var(--border);
+  animation:fadeUp .2s ease;
+}
+.m-q-row{
+  padding:12px 14px 10px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:flex-start;gap:8px;
+}
+.m-q-icon{width:20px;height:20px;border-radius:6px;background:var(--surface2);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.m-q-icon svg{width:11px;height:11px;fill:var(--text3)}
+.m-q-text{font-size:13px;color:var(--text2);line-height:1.45;flex:1}
+.m-q-badge{font-size:9px;padding:1px 5px;border-radius:4px;background:var(--surface2);color:var(--text3);font-family:'JetBrains Mono',monospace;white-space:nowrap;margin-top:2px;flex-shrink:0}
+
+.m-a-section{padding:12px 14px 14px}
+.m-a-header{display:flex;align-items:center;gap:6px;margin-bottom:10px}
+.m-a-avatar{width:20px;height:20px;border-radius:6px;background:linear-gradient(135deg,var(--accent),#a855f7);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.m-a-avatar svg{width:11px;height:11px;fill:#fff}
+.m-a-model{font-size:10px;color:var(--text2);font-weight:500}
+.m-a-actions{display:flex;gap:6px;margin-left:auto}
+.m-action-btn{background:none;border:1px solid var(--border2);color:var(--text3);font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:3px;font-family:'JetBrains Mono',monospace;transition:all .15s}
+.m-action-btn:active{opacity:.7}
+.m-action-btn svg{width:10px;height:10px;fill:currentColor}
+
+/* Mobile answer body */
+.m-a-body{font-size:14px;line-height:1.8;color:var(--text)}
+.m-a-body p{margin-bottom:10px}
+.m-a-body p:last-child{margin-bottom:0}
+.m-a-body p.intro{margin-bottom:12px;font-weight:500;color:var(--text)}
+.m-a-body strong{color:var(--accent);font-weight:600}
+.m-a-body em{color:var(--text2);font-style:italic}
+.m-a-body code{font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--surface2);border:1px solid var(--border2);padding:2px 6px;border-radius:5px;color:var(--accent2)}
+.m-a-body pre{background:#090909;border:1px solid var(--border2);border-radius:10px;padding:12px;overflow-x:auto;margin:10px 0;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.7;color:var(--green);position:relative}
+.m-a-body pre code{background:none;border:none;padding:0;color:var(--green)}
+.m-a-body ol{list-style:none;padding:0;margin:4px 0 12px;display:flex;flex-direction:column;gap:9px;counter-reset:lc}
+.m-a-body ol li{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.6;counter-increment:lc}
+.m-a-body ol li::before{content:counter(lc);min-width:22px;height:22px;background:var(--accent-bg);border:1px solid rgba(108,99,255,.3);color:var(--accent);border-radius:6px;font-size:11px;font-family:'JetBrains Mono',monospace;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.m-a-body ol li strong{color:var(--accent);font-weight:600}
+.m-a-body table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px}
+.m-a-body table th{background:var(--surface2);color:var(--accent2);font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;text-align:left;padding:7px 10px;border:1px solid var(--border2)}
+.m-a-body table td{padding:7px 10px;border:1px solid var(--border);color:var(--text)}
+.m-a-body table tr:nth-child(even) td{background:var(--surface2)}
+
+/* Mobile skeleton */
+.m-skeleton{display:flex;flex-direction:column;gap:8px}
+.m-skel-line{height:13px;border-radius:7px;background:linear-gradient(90deg,var(--surface2) 25%,var(--surface3) 50%,var(--surface2) 75%);background-size:200% 100%;animation:shimmer 1.4s ease-in-out infinite}
+
+/* ── MOBILE EMPTY STATE ── */
+.m-empty{
+  display:flex;flex-direction:column;align-items:center;
+  padding:40px 24px 20px;text-align:center;gap:12px;
+}
+.m-empty-icon{width:60px;height:60px;border-radius:18px;background:linear-gradient(135deg,var(--accent),#a855f7);display:flex;align-items:center;justify-content:center}
+.m-empty-icon svg{width:30px;height:30px;fill:#fff}
+.m-empty h3{font-size:18px;font-weight:700;letter-spacing:-.4px}
+.m-empty p{font-size:13px;color:var(--text2);max-width:260px;line-height:1.55}
+.m-chips{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:6px}
+.m-chip{background:var(--surface);border:1px solid var(--border2);color:var(--text2);font-size:12px;padding:7px 14px;border-radius:20px;cursor:pointer;transition:all .15s}
+.m-chip:active{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+
+/* ── MOBILE BOTTOM BAR ── */
+.m-bottom{
+  background:var(--surface);
+  border-top:1px solid var(--border);
+  padding:10px 16px;
+  padding-bottom: calc(10px + var(--safe-bottom));
+  flex-shrink:0;
+  position:sticky;
+  bottom:0;
+  z-index:10;
+}
+.m-btn-row{display:flex;gap:8px;align-items:center;margin-top:8px}
+.m-mic-btn{
+  width:46px;height:46px;border-radius:50%;
+  border:1.5px solid var(--border2);
+  background:var(--surface2);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:all .2s;flex-shrink:0;
+}
+.m-mic-btn svg{width:20px;height:20px;fill:var(--text2)}
+.m-mic-btn.on{background:rgba(255,107,107,.1);border-color:var(--red)}
+.m-mic-btn.on svg{fill:var(--red)}
+.m-mic-btn:active{transform:scale(.94)}
+
+.m-ai-btn{
+  flex:1;height:46px;
+  border:none;border-radius:12px;
+  background:linear-gradient(135deg, #6c63ff, #a855f7);
+  color:#fff;font-size:15px;font-weight:600;
+  font-family:'Inter',sans-serif;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  transition:all .15s;
+  box-shadow:0 4px 16px rgba(108,99,255,.35);
+  letter-spacing:-.2px;
+}
+.m-ai-btn:active{transform:scale(.97);box-shadow:0 2px 8px rgba(108,99,255,.2)}
+.m-ai-btn:disabled{background:#c5c5d0;box-shadow:none;cursor:not-allowed;color:rgba(255,255,255,.6)}
+.m-ai-btn svg{width:16px;height:16px;fill:currentColor}
+
+.m-clear-tx-btn{
+  width:46px;height:46px;border-radius:50%;
+  border:1.5px solid var(--border2);
+  background:var(--surface2);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;flex-shrink:0;transition:all .15s;
+}
+.m-clear-tx-btn svg{width:16px;height:16px;fill:var(--text3)}
+.m-clear-tx-btn:active{border-color:var(--red)}
+.m-clear-tx-btn:active svg{fill:var(--red)}
+
+/* ── MOBILE SETTINGS DRAWER ── */
+.m-drawer-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.4);
+  z-index:200;opacity:0;pointer-events:none;transition:opacity .25s;
+  backdrop-filter:blur(2px);
+}
+.m-drawer-overlay.open{opacity:1;pointer-events:auto}
+.m-drawer{
+  position:fixed;bottom:0;left:0;right:0;
+  background:var(--surface);
+  border-radius:20px 20px 0 0;
+  z-index:201;
+  transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);
+  max-height:85vh;overflow-y:auto;
+  padding-bottom: calc(20px + var(--safe-bottom));
+}
+.m-drawer.open{transform:translateY(0)}
+.m-drawer-handle{width:36px;height:4px;border-radius:2px;background:var(--border2);margin:12px auto 16px}
+.m-drawer-title{font-size:15px;font-weight:600;padding:0 18px 14px;border-bottom:1px solid var(--border)}
+.m-drawer-section{padding:14px 18px;border-bottom:1px solid var(--border)}
+.m-drawer-label{font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.m-drawer-hint{font-size:11px;color:var(--text3);margin-top:5px;line-height:1.5}
+
+/* Mobile field inputs */
+.m-field{width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:'Inter',sans-serif;font-size:13px;padding:10px 12px;border-radius:10px;outline:none}
+.m-field:focus{border-color:var(--accent)}
+select.m-field{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%239898b2' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px}
+textarea.m-field{resize:none;min-height:72px;line-height:1.5}
+
+/* Mobile model pills */
+.m-model-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.m-model-opt{padding:10px 12px;border-radius:10px;border:1.5px solid var(--border2);background:var(--surface2);cursor:pointer;transition:all .15s}
+.m-model-opt.active{border-color:var(--accent);background:var(--accent-bg)}
+.m-model-name{font-size:12px;font-weight:600;color:var(--text)}
+.m-model-opt.active .m-model-name{color:var(--accent)}
+.m-model-badge{font-size:10px;color:var(--text3);margin-top:2px}
+.m-model-opt.active .m-model-badge{color:var(--accent2)}
+
+/* Mobile mode pills */
+.m-mode-row{display:flex;gap:8px}
+.m-mode-opt{flex:1;padding:9px 8px;text-align:center;border-radius:10px;border:1.5px solid var(--border2);background:var(--surface2);cursor:pointer;font-size:12px;color:var(--text3);transition:all .15s}
+.m-mode-opt.active{border-color:var(--amber);background:rgba(255,209,102,.08);color:var(--amber)}
+
+/* Resume upload mobile */
+.m-upload-zone{border:1.5px dashed var(--border2);border-radius:10px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;background:var(--surface2);transition:all .2s;text-align:center}
+.m-upload-zone:active{border-color:var(--accent);background:var(--accent-bg)}
+.m-upload-zone.loaded{border-color:var(--green);border-style:solid;background:rgba(78,204,163,.05)}
+.m-upload-zone svg{width:20px;height:20px;fill:var(--text3)}
+.m-upload-zone.loaded svg{fill:var(--green)}
+.m-upload-text{font-size:12px;color:var(--text3)}
+.m-upload-zone.loaded .m-upload-text{color:var(--green)}
+.m-skill-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.m-skill-tag{font-size:10px;padding:3px 8px;border-radius:10px;background:var(--accent-bg);border:1px solid rgba(108,99,255,.2);color:var(--accent2);font-family:'JetBrains Mono',monospace}
+
+/* Doc list mobile */
+.m-doc-item{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--text2);margin-top:6px}
+.m-doc-item svg{width:12px;height:12px;fill:var(--green);flex-shrink:0}
+.m-doc-rm{margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:0 4px;line-height:1}
+
+/* API key field mobile */
+.m-key-row{display:flex;gap:8px;align-items:center}
+.m-key-link{font-size:11px;color:var(--accent);text-decoration:none;white-space:nowrap;padding:8px 0}
+
+/* Memory bar mobile */
+.m-mem-bar{display:flex;align-items:center;gap:6px;margin-top:6px}
+.m-mem-label{font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace}
+.m-mem-dots{display:flex;gap:3px}
+.m-mem-dot{width:7px;height:7px;border-radius:50%;background:var(--border2);transition:background .3s}
+.m-mem-dot.used{background:var(--accent)}
+
+/* ── Detected Question Panel ── */
+.d-tx-float .dq-panel{
+  border-top:1px solid rgba(255,255,255,.07);
+  padding-top:8px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+/* Detected question panels removed */
+
+/* ── Auto Mode Toggle ── */
+.auto-row{display:flex;align-items:center;justify-content:center;gap:8px;padding:4px 0 6px}
+.auto-row label{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none}
+.auto-row .auto-track{width:34px;height:18px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);position:relative;transition:background .2s;flex-shrink:0}
+.auto-row .auto-track.on{background:var(--accent);border-color:var(--accent)}
+.auto-row .auto-thumb{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:left .18s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.auto-row .auto-track.on .auto-thumb{left:18px}
+.auto-row .auto-lbl{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text3)}
+.auto-row .auto-lbl.on{color:var(--accent2)}
+.auto-badge{font-size:9px;padding:1px 6px;border-radius:10px;background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.25);color:var(--accent2);font-family:'JetBrains Mono',monospace;letter-spacing:.02em;display:none}
+.auto-badge.show{display:inline}
+
+/* ── MIC PERMISSION BANNER ── */
+#micPermBanner{
+  display:none;
+  background:linear-gradient(135deg,rgba(255,107,107,.15),rgba(255,107,107,.08));
+  border:1.5px solid rgba(255,107,107,.4);
+  border-radius:14px;
+  margin:8px 12px 0;
+  padding:12px 14px;
+  animation:fadeUp .3s ease;
+}
+#micPermBanner.show{display:block}
+.mic-perm-title{font-size:13px;font-weight:600;color:#ff6b6b;margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.mic-perm-msg{font-size:11px;color:var(--text2);line-height:1.6;margin-bottom:10px}
+.mic-perm-actions{display:flex;gap:8px;flex-wrap:wrap}
+.mic-perm-btn{padding:7px 14px;border-radius:10px;font-size:12px;font-weight:600;border:none;cursor:pointer;transition:all .15s}
+.mic-perm-btn.primary{background:var(--accent);color:#fff}
+.mic-perm-btn.primary:active{background:var(--accent2)}
+.mic-perm-btn.secondary{background:var(--surface2);border:1px solid var(--border2);color:var(--text2)}
+.mic-perm-steps{font-size:10px;color:var(--text3);line-height:1.8;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+
+/* ── LOCALHOST GUIDE MODAL ── */
+#lhModal{
+  display:none;position:fixed;inset:0;z-index:9999;
+  background:rgba(0,0,0,.6);backdrop-filter:blur(4px);
+  align-items:flex-end;justify-content:center;
+}
+#lhModal.show{display:flex}
+.lh-sheet{
+  background:var(--surface);border-radius:24px 24px 0 0;
+  padding:20px 20px 36px;width:100%;max-height:85vh;
+  overflow-y:auto;animation:slideUp .25s ease;
+}
+@keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+.lh-handle{width:40px;height:4px;border-radius:2px;background:var(--border2);margin:0 auto 16px}
+.lh-title{font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px}
+.lh-sub{font-size:12px;color:var(--text2);margin-bottom:18px;line-height:1.5}
+.lh-method{background:var(--surface2);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:12px}
+.lh-method-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;display:flex;align-items:center;gap:7px}
+.lh-badge{font-size:9px;padding:2px 7px;border-radius:8px;background:var(--accent-bg);border:1px solid rgba(108,99,255,.3);color:var(--accent2);font-family:'JetBrains Mono',monospace}
+.lh-badge.easy{background:rgba(78,204,163,.1);border-color:rgba(78,204,163,.3);color:var(--green)}
+.lh-steps{list-style:none;padding:0;margin:8px 0 0;display:flex;flex-direction:column;gap:7px}
+.lh-steps li{font-size:12px;color:var(--text2);line-height:1.6;display:flex;gap:8px;align-items:flex-start}
+.lh-step-num{min-width:20px;height:20px;border-radius:5px;background:var(--accent-bg);color:var(--accent2);border:1px solid rgba(108,99,255,.25);font-size:10px;font-family:'JetBrains Mono',monospace;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.lh-code{display:block;background:#0d0d0f;color:var(--green);font-family:'JetBrains Mono',monospace;font-size:11px;padding:8px 12px;border-radius:8px;margin:6px 0;border:1px solid var(--border2);word-break:break-all}
+.lh-close{width:100%;margin-top:16px;padding:13px;border-radius:14px;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:14px;font-weight:600;cursor:pointer}
+.lh-store-link{display:inline-block;color:var(--accent2);font-size:11px;text-decoration:none;margin-top:4px}
+
+/* ── WEB SPEECH FALLBACK BADGE ── */
+.wsr-badge{display:none;font-size:9px;padding:2px 7px;border-radius:8px;background:rgba(255,209,102,.12);color:var(--amber);border:1px solid rgba(255,209,102,.25);font-family:'JetBrains Mono',monospace;margin-left:6px}
+.wsr-badge.show{display:inline}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     DESKTOP APP — Parakeet Chat Layout
+══════════════════════════════════════════ -->
+<div class="app-shell">
+
+  <!-- Desktop Header -->
+  <div class="d-header">
+    <div class="d-logo-mark">
+      <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 110 20A10 10 0 0112 2zm1 5v5h3l-4 5-4-5h3V7h2z"/></svg>
+    </div>
+    <div>
+      <div class="d-app-name">RajPrep AI</div>
+      <div class="d-app-sub">Real-time Interview Copilot</div>
+    </div>
+    <div class="live-dot" id="liveDot"></div>
+    <div class="d-spacer"></div>
+    <div class="d-header-actions">
+      <span class="d-ans-count" id="ansCount"></span>
+      <label class="tts-toggle">
+        <div class="toggle-track" id="ttsTrack" onclick="toggleTTS()"><div class="toggle-thumb"></div></div>
+        <span id="ttsLabel">TTS off</span>
+      </label>
+      <button class="hdr-btn" onclick="exportJSON()">↓ JSON</button>
+      <button class="hdr-btn" onclick="exportTXT()">↓ TXT</button>
+      <button class="hdr-btn" onclick="clearAnswers()">Clear</button>
+      <button class="hdr-btn hdr-btn-settings" onclick="openSettings()">
+        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        Settings
+      </button>
+    </div>
+  </div>
+
+  <!-- Full-width Chat Area -->
+  <div class="right-panel">
+    <div class="answers-area" id="answers">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon"><svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg></div>
+        <h2>RajPrep AI</h2>
+        <p>Your Real-Time Interview Copilot. Speak or type any interview question and get structured answers instantly.</p>
+        <div class="chips">
+          <div class="chip" onclick="inject('What is WebLogic and its main components?')">WebLogic</div>
+          <div class="chip" onclick="inject('Explain the top command and how to use it')">top command</div>
+          <div class="chip" onclick="inject('Tell me about yourself')">About yourself</div>
+          <div class="chip" onclick="inject('What is the difference between TCP and UDP?')">TCP vs UDP</div>
+          <div class="chip" onclick="inject('How does JWT authentication work?')">JWT Auth</div>
+          <div class="chip" onclick="inject('What is Docker and how do you use it?')">Docker</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Transcript Panel -->
+  <div class="d-tx-float">
+    <div class="d-tx-float-hdr">
+      <div class="mic-led" id="micLed"></div>
+      <span class="mic-lbl" id="micLbl">Mic off</span>
+      <span class="tx-chars" id="txChars">0 chars</span>
+    </div>
+    <div class="transcript-text" id="txText" contenteditable="true" spellcheck="false" data-ph="Speak or type your question..."></div>
+    <!-- Detected Question removed — question detection runs silently in background -->
+    <!-- Hidden elements kept for JS compatibility -->
+    <span id="dqDot" style="display:none"></span>
+    <span id="dqText" style="display:none"></span>
+    <span id="dqCount" style="display:none"></span>
+    <div class="memory-bar">
+      <span class="memory-label">Context:</span>
+      <div class="memory-dots" id="memDots"></div>
+      <span class="memory-label" id="memCount">0 / 6</span>
+    </div>
+  </div>
+
+  <!-- Bottom Controls Bar -->
+  <div class="d-bottom-bar">
+    <!-- Auto-trigger toggle -->
+    <label class="tts-toggle" style="margin-right:4px">
+      <div class="toggle-track" id="dAutoTrack" onclick="toggleAuto({checked:!AUTO_MODE},true)"><div class="toggle-thumb"></div></div>
+      <span id="dAutoLbl" style="font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace">Auto off</span>
+    </label>
+    <button class="btn-mic" id="micBtn" onclick="toggleMic()">
+      <svg viewBox="0 0 24 24"><path d="M12 15c1.66 0 3-1.34 3-3V6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 15 6.7 12H5c0 3.42 2.72 6.23 6 6.72V21h2v-2.28c3.28-.49 6-3.3 6-6.72h-1.7z"/></svg>
+      <span id="micBtnLbl">Listen</span>
+    </button>
+    <button class="btn-gen d-gen-btn" id="genBtn" onclick="generate()">
+      <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      ✨ AI Answer
+    </button>
+    <button class="btn-clear-tx" onclick="clearTx()">
+      <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+    </button>
+  </div>
+
+  <!-- Status Bar (fixed above bottom bar) -->
+  <div class="d-status-bar" id="status">Enter API key in Settings to begin</div>
+
+</div><!-- /app-shell -->
+
+<!-- Desktop Settings Panel -->
+<div class="d-settings-overlay" id="dSettingsOverlay" onclick="closeSettings()"></div>
+<div class="d-settings-panel" id="dSettingsPanel">
+
+  <div class="d-settings-hdr">
+    <span class="d-settings-title">⚙ Settings</span>
+    <button class="d-settings-close" onclick="closeSettings()">✕</button>
+  </div>
+
+  <!-- API Key -->
+  <div class="left-section">
+    <div class="sec-title">Groq API Key</div>
+    <div class="key-wrap">
+      <input class="key-input" type="password" id="apiKey" placeholder="gsk_xxxx" value="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" oninput="onKeyChange()"/>
+      <a class="key-link" href="https://console.groq.com/keys" target="_blank">Groq ↗</a>
+    </div>
+  </div>
+
+  <!-- Deepgram API Key -->
+  <div class="left-section">
+    <div class="sec-title">Deepgram Key (Mic)</div>
+    <div class="key-wrap">
+      <input class="key-input" type="password" id="deepgramKey" placeholder="Deepgram API key" value="721d08f44d0343023675fe823a7f11e9b2994ba9"/>
+      <a class="key-link" href="https://console.deepgram.com/signup" target="_blank">Get key ↗</a>
+    </div>
+  </div>
+
+  <!-- Model -->
+  <div class="left-section">
+    <div class="sec-title">Model</div>
+    <div class="model-row">
+      <button class="model-btn active" data-provider="groq" data-model="llama-3.1-8b-instant" onclick="selectModel(this)">Groq ⚡<br><span style="font-size:8px;opacity:.7">fastest</span></button>
+      <button class="model-btn" data-provider="groq" data-model="llama-3.3-70b-versatile" onclick="selectModel(this)">Groq 70B<br><span style="font-size:8px;opacity:.7">smarter</span></button>
+      <button class="model-btn" data-provider="openai" data-model="gpt-4o-mini" onclick="selectModel(this)">GPT-4o<br><span style="font-size:8px;opacity:.7">quality</span></button>
+      <button class="model-btn" data-provider="ollama" data-model="llama3" onclick="selectModel(this)">Local<br><span style="font-size:8px;opacity:.7">offline</span></button>
+    </div>
+    <input class="ollama-url" id="ollamaUrl" placeholder="http://localhost:11434" value="http://localhost:11434"/>
+  </div>
+
+  <!-- Answer Mode -->
+  <div class="left-section">
+    <div class="sec-title">Answer Mode</div>
+    <div class="mode-row">
+      <button class="mode-btn active" data-mode="concise" onclick="selectMode(this)">⚡ Short</button>
+      <button class="mode-btn" data-mode="detailed" onclick="selectMode(this)">📖 Detailed</button>
+      <button class="mode-btn" data-mode="code" onclick="selectMode(this)">💻 Code</button>
+    </div>
+  </div>
+
+  <!-- Job Description -->
+  <div class="left-section">
+    <div class="sec-title">Job Description <span style="color:var(--text3);font-size:8px">(optional)</span></div>
+    <textarea class="jd-textarea" id="jobDesc" placeholder="Paste job description here..." oninput="updateJD(this.value)"></textarea>
+    <div class="jd-hint">AI will reference this for relevant context.</div>
+  </div>
+
+  <!-- Resume -->
+  <div class="left-section">
+    <div class="sec-title">Resume</div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <div class="resume-zone" id="resumeZone" onclick="document.getElementById('resumeFile').click()">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6z"/></svg>
+        <span class="resume-zone-text" id="resumeTxt">Upload PDF or DOCX</span>
+      </div>
+      <button class="btn-rm" id="resumeRm" onclick="clearResume()">✕</button>
+    </div>
+    <div class="resume-skills" id="skillTags"></div>
+    <input type="file" id="resumeFile" accept=".pdf,.doc,.docx,.txt" onchange="loadResume(event)">
+  </div>
+
+  <!-- Documents -->
+  <div class="left-section">
+    <div class="sec-title">Documents</div>
+    <div class="resume-zone" onclick="document.getElementById('docFiles').click()">
+      <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+      <span class="resume-zone-text">Add context documents</span>
+    </div>
+    <div class="doc-list" id="docList"></div>
+    <input type="file" id="docFiles" accept=".pdf,.doc,.docx,.txt" multiple onchange="loadDocs(event)">
+  </div>
+
+  <!-- Export -->
+  <div class="d-export-row">
+    <button class="d-export-btn" onclick="exportJSON()">↓ Export JSON</button>
+    <button class="d-export-btn" onclick="exportTXT()">↓ Export TXT</button>
+  </div>
+
+</div><!-- /d-settings-panel -->
+
+
+<!-- ══════════════════════════════════════════
+     MOBILE APP — Parakeet Style
+══════════════════════════════════════════ -->
+<div class="mobile-shell" id="mobileShell">
+
+  <!-- Mobile Header -->
+  <div class="m-header">
+    <div class="m-logo"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 110 20A10 10 0 0112 2zm1 5v5h3l-4 5-4-5h3V7h2z"/></svg></div>
+    <div>
+      <div class="m-title">RajPrep AI</div>
+    </div>
+    <div class="m-status-pill" id="mStatusPill">
+      <div class="m-led" id="mLed"></div>
+      <span id="mStatusTxt">Ready</span>
+    </div>
+    <div class="m-timer" id="mTimer" style="display:none">0:00</div>
+    <div class="m-settings-btn" onclick="openDrawer()">
+      <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+    </div>
+  </div>
+
+  <!-- Mic Permission Banner (shows when blocked) -->
+  <div id="micPermBanner">
+    <div class="mic-perm-title">&#127897; Microphone Blocked</div>
+    <div class="mic-perm-msg" id="micPermMsg">Microphone permission was denied.</div>
+    <div class="mic-perm-actions">
+      <button class="mic-perm-btn primary" onclick="openLhModal()">&#128295; How to Fix</button>
+      <button class="mic-perm-btn secondary" onclick="requestMicPermission()">&#127908; Grant Access</button>
+      <button class="mic-perm-btn secondary" onclick="tryWebSpeechFallback()">&#128260; Fallback</button>
+    </div>
+    <div class="mic-perm-steps" id="micPermSteps"></div>
+  </div>
+
+  <!-- Mobile Transcript -->
+  <div class="m-tx-section">
+    <div class="m-tx-label">
+      <span>Live Transcript</span>
+      <span style="font-size:10px;color:var(--text3)" id="mTxChars">0 chars</span>
+    </div>
+    <div class="m-tx-box" id="mTxText" contenteditable="true" spellcheck="false"
+         data-ph="Listening... or type your question"></div>
+  </div>
+
+  <!-- Detected Question removed — runs silently in background -->
+  <!-- Hidden stubs for JS compatibility -->
+  <span id="mDqDot" style="display:none"></span>
+  <span id="mDqText" style="display:none"></span>
+  <span id="mDqCount" style="display:none"></span>
+
+  <!-- Mobile Answers Scroll -->
+  <div class="m-scroll" id="mAnswers">
+    <div class="m-answers-header">
+      <span class="m-answers-title">Answers <span id="mAnsCount" style="color:var(--accent);margin-left:4px"></span></span>
+      <button class="m-clear-btn" onclick="clearAnswers()">Clear all</button>
+    </div>
+    <div id="mAnswersList">
+      <!-- Empty state -->
+      <div class="m-empty" id="mEmpty">
+        <div class="m-empty-icon"><svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg></div>
+        <h3>RajPrep AI</h3>
+        <p>Your Real-Time Interview Copilot. Speak or type your question and tap AI Answer.</p>
+        <div class="m-chips">
+          <div class="m-chip" onclick="mInject('What is WebLogic and its main components?')">WebLogic</div>
+          <div class="m-chip" onclick="mInject('Explain the top command')">top command</div>
+          <div class="m-chip" onclick="mInject('Tell me about yourself')">About me</div>
+          <div class="m-chip" onclick="mInject('Difference between TCP and UDP')">TCP vs UDP</div>
+          <div class="m-chip" onclick="mInject('How does Docker work?')">Docker</div>
+          <div class="m-chip" onclick="mInject('What is JWT authentication?')">JWT Auth</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Bottom Bar -->
+  <div class="m-bottom">
+    <!-- Memory dots -->
+    <div class="m-mem-bar" style="margin-bottom:8px">
+      <span class="m-mem-label">Context:</span>
+      <div class="m-mem-dots" id="mMemDots"></div>
+      <span class="m-mem-label" id="mMemCount">0/6</span>
+    </div>
+    <!-- Auto-trigger toggle -->
+    <div class="auto-row">
+      <label>
+        <div class="auto-track" id="mAutoTrack" onclick="toggleAuto({},false)">
+          <div class="auto-thumb"></div>
+        </div>
+        <span class="auto-lbl" id="mAutoLbl">Auto</span>
+      </label>
+      <span class="auto-badge" id="mAutoBadge">AUTO ON</span>
+    </div>
+    <div class="m-btn-row">
+      <button class="m-mic-btn" id="mMicBtn" onclick="toggleMic()">
+        <svg viewBox="0 0 24 24"><path d="M12 15c1.66 0 3-1.34 3-3V6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 15 6.7 12H5c0 3.42 2.72 6.23 6 6.72V21h2v-2.28c3.28-.49 6-3.3 6-6.72h-1.7z"/></svg>
+      </button>
+      <button class="m-ai-btn" id="mGenBtn" onclick="generate()">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+        ✨ AI Answer
+      </button>
+      <button class="m-clear-tx-btn" onclick="clearTx()">
+        <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+      </button>
+    </div>
+  </div>
+
+</div><!-- /mobile-shell -->
+
+<!-- ══ MOBILE SETTINGS DRAWER ══ -->
+<div class="m-drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="m-drawer" id="mDrawer">
+  <div class="m-drawer-handle"></div>
+  <div class="m-drawer-title">Settings</div>
+
+  <!-- Groq API Key -->
+  <div class="m-drawer-section">
+    <div class="m-drawer-label">Groq API Key</div>
+    <div class="m-key-row">
+      <input class="m-field" type="password" id="mApiKey" placeholder="gsk_xxxx" value="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" oninput="onKeyChange()" style="flex:1"/>
+      <a class="m-key-link" href="https://console.groq.com/keys" target="_blank">Get key ↗</a>
+    </div>
+  </div>
+
+  <!-- Deepgram API Key -->
+  <div class="m-drawer-section">
+    <div class="m-drawer-label">Deepgram Key (Mic)</div>
+    <div class="m-key-row">
+      <input class="m-field" type="password" id="mDeepgramKey" placeholder="Deepgram API key" value="721d08f44d0343023675fe823a7f11e9b2994ba9" style="flex:1"/>
+      <a class="m-key-link" href="https://console.deepgram.com/signup" target="_blank">Get key ↗</a>
+    </div>
+  </div>
+
+  <!-- Model -->
+  <div class="m-drawer-section">
+    <div class="m-drawer-label">AI Model <span style="color:var(--accent);font-size:9px">👉 Recommended: Fast</span></div>
+    <div class="m-model-grid">
+      <div class="m-model-opt active" data-provider="groq" data-model="llama-3.1-8b-instant" onclick="mSelectModel(this)">
+        <div class="m-model-name">LLaMA 3.1 8B</div>
+        <div class="m-model-badge">⚡ Super Fast (Groq)</div>
+      </div>
+      <div class="m-model-opt" data-provider="groq" data-model="llama-3.3-70b-versatile" onclick="mSelectModel(this)">
+        <div class="m-model-name">LLaMA 3.3 70B</div>
+        <div class="m-model-badge">🧠 Smarter (Groq)</div>
+      </div>
+      <div class="m-model-opt" data-provider="openai" data-model="gpt-4o-mini" onclick="mSelectModel(this)">
+        <div class="m-model-name">GPT-4.1 Mini</div>
+        <div class="m-model-badge">⚡ Fast (OpenAI)</div>
+      </div>
+      <div class="m-model-opt" data-provider="openai" data-model="gpt-4o" onclick="mSelectModel(this)">
+        <div class="m-model-name">GPT-4.1 Smart</div>
+        <div class="m-model-badge">🎯 Quality (OpenAI)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Answer Mode -->
+  <div class="m-drawer-section">
+    <div class="m-drawer-label">Answer Mode</div>
+    <div class="m-mode-row">
+      <div class="m-mode-opt active" data-mode="concise" onclick="mSelectMode(this)">⚡ Short</div>
+      <div class="m-mode-opt" data-mode="detailed" onclick="mSelectMode(this)">📖 Detailed</div>
+      <div class="m-mode-opt" data-mode="code" onclick="mSelectMode(this)">💻 Code</div>
+    </div>
+  </div>
+
+  <!-- Language -->
+  <div class="m-drawer-section">
+    <div class="m-drawer-label">Response Language</div>
+    <select class="m-field" id="mLang" onchange="updateLanguage(this.value)">
+      <option value="simple">Simple English (Default)</option>
+      <option value="technical">Technical English</option>
+      <option value="hindi">Hindi (हिन्दी)</option>
+      <option value="hinglish">Hinglish</option>
+    </select>
+    <div class="m-drawer-hint">AI will respond in the selected language style.</div>
+  </div>
+
+  <!-- Job Description -->
+  <div class="m-drawer-section">
+    <div class="m-drawer-label">Job Description</div>
+    <textarea class="m-field" id="mJobDesc" rows="3" placeholder="Paste job description here..."
+      oninput="updateJD(this.value)"></textarea>
+    <div class="m-drawer-hint">AI will reference this to give more relevant answers during your session.</div>
+  </div>
+
+  <!-- Resume -->
+  <div class="m-drawer-section">
+    <div class="m-drawer-label">Resume</div>
+    <div class="m-upload-zone" id="mResumeZone" onclick="document.getElementById('mResumeFile').click()">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6z"/></svg>
+      <span class="m-upload-text" id="mResumeTxt">Upload PDF or DOCX</span>
+    </div>
+    <div class="m-skill-row" id="mSkillTags"></div>
+    <input type="file" id="mResumeFile" style="display:none" accept=".pdf,.doc,.docx,.txt" onchange="loadResume(event, true)">
+  </div>
+
+  <!-- Documents -->
+  <div class="m-drawer-section">
+    <div class="m-drawer-label">Documents</div>
+    <div class="m-upload-zone" onclick="document.getElementById('mDocFiles').click()">
+      <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+      <span class="m-upload-text">Add context documents</span>
+    </div>
+    <div id="mDocList"></div>
+    <div class="m-drawer-hint">AI will reference these documents when generating responses.</div>
+    <input type="file" id="mDocFiles" style="display:none" accept=".pdf,.doc,.docx,.txt" multiple onchange="loadDocs(event, true)">
+  </div>
+
+  <!-- Export -->
+  <div class="m-drawer-section" style="display:flex;gap:10px">
+    <button class="m-field" style="cursor:pointer;background:var(--surface2);flex:1;height:44px;border:1px solid var(--border2);border-radius:10px;font-size:13px;color:var(--text2)" onclick="exportJSON();closeDrawer()">↓ Export JSON</button>
+    <button class="m-field" style="cursor:pointer;background:var(--surface2);flex:1;height:44px;border:1px solid var(--border2);border-radius:10px;font-size:13px;color:var(--text2)" onclick="exportTXT();closeDrawer()">↓ Export TXT</button>
+  </div>
+
+</div><!-- /m-drawer -->
+
+<div class="toast" id="toast"></div>
+
+<!-- ══════════════════════════════════════════
+     JAVASCRIPT ENGINE
+══════════════════════════════════════════ -->
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ════════════════════════════
+// CONFIG & STATE
+// ════════════════════════════
+const MEMORY_LIMIT = 6;
+
+const CFG = {
+  provider: 'groq',
+  model:    'llama-3.1-8b-instant',
+  mode:     'concise',
+  tts:      false,
+  lang:     'simple',
+  jobDesc:  '',
+  ollamaUrl:'http://localhost:11434'
+};
+
+const RESUME = { raw:'', name:'', skills:[], experience:[], tools:[] };
+const DOCS   = [];  // [{name, text}] — extra context documents
+const MEMORY = [];
+const SESSION= [];
+
+let isGenerating      = false;
+let isListening       = false;
+let isProcessing      = false;
+
+// ── Speech Recognition (primary — real-time)
+let recognition       = null;
+let finalTranscript   = '';
+let interimTranscript = '';
+let rafPending        = false;
+
+// ── MediaRecorder (secondary — Whisper accuracy layer)
+let mediaRecorder     = null;
+let audioChunks       = [];
+let micStream         = null;
+let whisperLoopTimer  = null;
+let whisperBusy       = false;
+
+// ── Timer
+let timerInterval     = null;
+let timerSecs         = 0;
+
+// ── Auto-trigger layer
+let AUTO_MODE         = false;   // true = fire AI when question detected after silence
+let autoSilenceTimer  = null;    // debounce timer for auto-trigger
+
+// ── Parakeet Question Buffer (Requirement 2)
+let questionBuffer       = [];   // [{question, time}] — last 5 detected questions
+let lastDetectedQuestion = '';   // most recent unique question detected
+
+// Detect mobile
+const IS_MOBILE = () => window.innerWidth <= 768;
+
+// ════════════════════════════
+// DOM REFS — unified for both views
+// ════════════════════════════
+const txEl      = document.getElementById('txText');
+const mTxEl     = document.getElementById('mTxText');
+const micLed    = document.getElementById('micLed');
+const micLbl    = document.getElementById('micLbl');
+const micBtn    = document.getElementById('micBtn');
+const micBtnLbl = document.getElementById('micBtnLbl');
+const mMicBtn   = document.getElementById('mMicBtn');
+const genBtn    = document.getElementById('genBtn');
+const mGenBtn   = document.getElementById('mGenBtn');
+const answersEl = document.getElementById('answers');
+const emptyState= document.getElementById('emptyState');
+const statusEl  = document.getElementById('status');
+const apiKeyEl  = document.getElementById('apiKey');
+const mApiKeyEl = document.getElementById('mApiKey');
+const memDots   = document.getElementById('memDots');
+const memCount  = document.getElementById('memCount');
+const mMemDots  = document.getElementById('mMemDots');
+const mMemCount = document.getElementById('mMemCount');
+const liveDot   = document.getElementById('liveDot');
+const txChars   = document.getElementById('txChars');
+const mTxChars  = document.getElementById('mTxChars');
+const ansCount  = document.getElementById('ansCount');
+const mAnsCount = document.getElementById('mAnsCount');
+
+const deepgramKeyEl = document.getElementById('deepgramKey');
+const mDeepgramKeyEl = document.getElementById('mDeepgramKey');
+
+// ════════════════════════════
+// INIT
+// ════════════════════════════
+window.addEventListener('load', async () => {
+  // Check mic permission state without acquiring the stream eagerly
+  try {
+    const perm = await navigator.permissions.query({ name: 'microphone' });
+    if (perm.state === 'denied') throw new Error('denied');
+    setStatus('Ready — keys preloaded, tap Listen to start', '');
+    liveDot.style.opacity = '1';
+    setMobileStatus('Ready', false);
+  } catch(e) {
+    setStatus('Allow microphone access and refresh', 'error');
+    setMobileStatus('Mic blocked', false);
+  }
+  updateMemoryUI();
+  loadSession();
+  // Sync API keys between desktop and mobile on load
+  if (apiKeyEl.value && !mApiKeyEl.value) mApiKeyEl.value = apiKeyEl.value;
+  if (mApiKeyEl.value && !apiKeyEl.value) apiKeyEl.value = mApiKeyEl.value;
+  if (deepgramKeyEl.value && !mDeepgramKeyEl.value) mDeepgramKeyEl.value = deepgramKeyEl.value;
+  if (mDeepgramKeyEl.value && !deepgramKeyEl.value) deepgramKeyEl.value = mDeepgramKeyEl.value;
+  // Sync API keys between panels on change
+  apiKeyEl.addEventListener('input', () => { mApiKeyEl.value = apiKeyEl.value; });
+  mApiKeyEl.addEventListener('input', () => { apiKeyEl.value = mApiKeyEl.value; });
+  deepgramKeyEl.addEventListener('input', () => { mDeepgramKeyEl.value = deepgramKeyEl.value; });
+  mDeepgramKeyEl.addEventListener('input', () => { deepgramKeyEl.value = mDeepgramKeyEl.value; });
+});
+
+// ════════════════════════════
+// DESKTOP SETTINGS PANEL
+// ════════════════════════════
+function openSettings() {
+  document.getElementById('dSettingsOverlay').classList.add('open');
+  document.getElementById('dSettingsPanel').classList.add('open');
+}
+function closeSettings() {
+  document.getElementById('dSettingsOverlay').classList.remove('open');
+  document.getElementById('dSettingsPanel').classList.remove('open');
+}
+
+// ════════════════════════════
+// MOBILE STATUS & TIMER
+// ════════════════════════════
+function setMobileStatus(text, isListening) {
+  const pill = document.getElementById('mStatusPill');
+  const led  = document.getElementById('mLed');
+  const txt  = document.getElementById('mStatusTxt');
+  if (!pill) return;
+  txt.textContent = text;
+  led.className = 'm-led' + (isListening ? ' on' : (text === 'Done ✓' ? ' ok' : ''));
+}
+
+function startTimer() {
+  timerSecs = 0;
+  const el = document.getElementById('mTimer');
+  if (el) el.style.display = 'block';
+  timerInterval = setInterval(() => {
+    timerSecs++;
+    const m = Math.floor(timerSecs/60), s = timerSecs%60;
+    if (el) el.textContent = m + ':' + String(s).padStart(2,'0');
+  }, 1000);
+}
+function stopTimer() {
+  clearInterval(timerInterval);
+  const el = document.getElementById('mTimer');
+  if (el) el.style.display = 'none';
+}
+
+// ════════════════════════════
+// DRAWER
+// ════════════════════════════
+function openDrawer() {
+  document.getElementById('drawerOverlay').classList.add('open');
+  document.getElementById('mDrawer').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeDrawer() {
+  document.getElementById('drawerOverlay').classList.remove('open');
+  document.getElementById('mDrawer').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ════════════════════════════
+// MODEL & MODE SELECTORS
+// ════════════════════════════
+function selectModel(btn) {
+  document.querySelectorAll('.model-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  CFG.provider = btn.dataset.provider;
+  CFG.model    = btn.dataset.model;
+  document.getElementById('ollamaUrl').classList.toggle('show', CFG.provider === 'ollama');
+}
+
+function mSelectModel(el) {
+  document.querySelectorAll('.m-model-opt').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  CFG.provider = el.dataset.provider;
+  CFG.model    = el.dataset.model;
+  showToast('Model: ' + el.querySelector('.m-model-name').textContent);
+}
+
+function selectMode(btn) {
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  CFG.mode = btn.dataset.mode;
+}
+
+function mSelectMode(el) {
+  document.querySelectorAll('.m-mode-opt').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  CFG.mode = el.dataset.mode;
+}
+
+function updateLanguage(val) { CFG.lang = val; }
+function updateJD(val) {
+  CFG.jobDesc = val;
+  // Sync both JD fields
+  const jd1 = document.getElementById('jobDesc');
+  const jd2 = document.getElementById('mJobDesc');
+  if (jd1 && jd1.value !== val) jd1.value = val;
+  if (jd2 && jd2.value !== val) jd2.value = val;
+}
+
+function onKeyChange() {
+  const k = (apiKeyEl.value || mApiKeyEl.value).trim();
+  if (k.length > 8) setStatus('API key set ✓', 'ok');
+}
+
+function toggleTTS() {
+  CFG.tts = !CFG.tts;
+  document.getElementById('ttsTrack').classList.toggle('on', CFG.tts);
+  document.getElementById('ttsLabel').textContent = CFG.tts ? 'TTS on' : 'TTS off';
+}
+
+// ════════════════════════════
+// RESUME ENGINE
+// ════════════════════════════
+async function loadResume(e, isMobile = false) {
+  const file = e.target.files[0];
+  if (!file) return;
+  setStatus('Reading resume...', 'active');
+  try {
+    let text = '';
+    if (file.name.endsWith('.pdf'))      text = await readPdf(file);
+    else if (file.name.endsWith('.txt')) text = await file.text();
+    else                                 text = await readDocx(file);
+
+    if (text.trim().length < 30) { setStatus('Could not read — try PDF or TXT', 'error'); return; }
+    RESUME.raw = text.trim().slice(0, 4000);
+    parseResume(RESUME.raw);
+    renderSkillTags(isMobile);
+    setStatus('Resume loaded — ' + RESUME.skills.length + ' skills found', 'ok');
+
+    // Update both zones
+    ['resumeZone','mResumeZone'].forEach(id => {
+      const z = document.getElementById(id);
+      if (z) z.classList.add('loaded');
+    });
+    ['resumeTxt','mResumeTxt'].forEach(id => {
+      const z = document.getElementById(id);
+      if (z) z.textContent = '✓ ' + file.name;
+    });
+    document.getElementById('resumeRm')?.classList.add('show');
+    showToast('Resume loaded ✓');
+  } catch(err) { setStatus('Error: ' + err.message, 'error'); }
+}
+
+// Load extra context documents
+async function loadDocs(e, isMobile = false) {
+  const files = Array.from(e.target.files);
+  for (const file of files) {
+    try {
+      let text = '';
+      if (file.name.endsWith('.pdf'))      text = await readPdf(file);
+      else if (file.name.endsWith('.txt')) text = await file.text();
+      else                                 text = await readDocx(file);
+      if (text.trim().length > 20) {
+        DOCS.push({ name: file.name, text: text.trim().slice(0, 2000) });
+        renderDocList();
+        showToast('Doc added: ' + file.name);
+      }
+    } catch(err) { showToast('Could not read: ' + file.name); }
+  }
+}
+
+function renderDocList() {
+  ['docList','mDocList'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = '';
+    DOCS.forEach((doc, i) => {
+      const item = document.createElement('div');
+      item.className = id === 'mDocList' ? 'm-doc-item' : 'doc-item';
+      item.innerHTML = `<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 1.5L18.5 9H13V3.5z"/></svg>${doc.name}<button class="doc-rm m-doc-rm" onclick="removeDoc(${i})">×</button>`;
+      el.appendChild(item);
+    });
+  });
+}
+
+function removeDoc(i) {
+  DOCS.splice(i, 1);
+  renderDocList();
+}
+
+function parseResume(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  RESUME.name = lines[0] || '';
+  const skillKeywords = ['java','python','javascript','typescript','react','node','spring','kubernetes','docker','aws','azure','gcp','linux','sql','mongodb','redis','kafka','git','jenkins','ansible','terraform','bash','weblogic','jboss','nginx','apache','microservices','rest','graphql','ci/cd','devops','agile','scrum','c++','go','rust','php','ruby','swift','kotlin','flutter','vue','angular','next.js'];
+  const lower = text.toLowerCase();
+  RESUME.skills = skillKeywords.filter(k => lower.includes(k));
+  RESUME.experience = lines.filter(l => /\d{4}/.test(l) || /experience|worked|developed|designed|managed/i.test(l)).slice(0, 10);
+}
+
+function renderSkillTags(isMobile) {
+  const id = isMobile ? 'mSkillTags' : 'skillTags';
+  const container = document.getElementById(id);
+  if (!container) return;
+  container.innerHTML = '';
+  RESUME.skills.slice(0, 12).forEach(s => {
+    const t = document.createElement('span');
+    t.className = isMobile ? 'm-skill-tag' : 'skill-tag';
+    t.textContent = s;
+    container.appendChild(t);
+  });
+}
+
+function clearResume() {
+  RESUME.raw = ''; RESUME.skills = []; RESUME.experience = []; RESUME.name = '';
+  ['resumeZone','mResumeZone'].forEach(id => document.getElementById(id)?.classList.remove('loaded'));
+  ['resumeTxt','mResumeTxt'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = 'Upload PDF or DOCX';
+  });
+  document.getElementById('resumeRm')?.classList.remove('show');
+  ['resumeFile','mResumeFile'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['skillTags','mSkillTags'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
+  showToast('Resume removed');
+}
+
+async function readPdf(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let out = '';
+  for (let i = 1; i <= Math.min(pdf.numPages, 6); i++) {
+    const pg = await pdf.getPage(i);
+    const ct = await pg.getTextContent();
+    out += ct.items.map(s => s.str).join(' ') + '\n';
+  }
+  return out;
+}
+
+async function readDocx(file) {
+  const buf = await file.arrayBuffer();
+  const raw = new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(buf));
+  const matches = raw.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [];
+  const text = matches.map(m => m.replace(/<[^>]+>/g, '')).join(' ');
+  return text.length > 30 ? text : raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+}
+
+// ════════════════════════════
+// QUESTION TYPE CLASSIFIER
+// ════════════════════════════
+function classifyQuestion(q) {
+  if (/tell me about|about yourself|your experience|your background|strengths|weakness|why should|why do you|greatest achievement|challenge you faced|leadership/i.test(q)) return 'behavioral';
+  if (/write|code|implement|function|algorithm|complexity|big.?o|sort|search|recursive|loop|linked list|tree|graph/i.test(q)) return 'coding';
+  if (/design|architecture|scale|scalable|distributed|microservice|load balanc|caching|system design/i.test(q)) return 'sysdesign';
+  if (/how (do|to|can|would) (you |i |we )?(?:use|run|type|install|start|stop|configure|deploy)|command|terminal|cli|kubectl|docker run|git |ssh |chmod|grep/i.test(q)) return 'command';
+  if (/^what is|^what are|^explain|^describe|^define/i.test(q)) return 'concept';
+  return 'general';
+}
+
+const TYPE_COLORS = { behavioral:'#4fc3f7', coding:'#4ecca3', sysdesign:'#a855f7', command:'#ffd166', concept:'#8b85ff', general:'#52525e' };
+const TYPE_LABELS = { behavioral:'👤 behavioral', coding:'💻 coding', sysdesign:'🏗 sys design', command:'⌨ command', concept:'🧠 concept', general:'💬 general' };
+
+// ════════════════════════════
+// LANGUAGE INSTRUCTIONS
+// ════════════════════════════
+function getLangInstruction() {
+  const map = {
+    simple:    'Write in simple, easy-to-understand English. Avoid jargon. Explain terms when used.',
+    technical: 'Write in precise technical English suitable for a senior developer audience.',
+    hindi:     'Write your response in Hindi (हिन्दी). Use Devanagari script.',
+    hinglish:  'Write in Hinglish — a natural mix of Hindi and English commonly used in India.'
+  };
+  return map[CFG.lang] || map.simple;
+}
+
+// ════════════════════════════
+// PROMPT SYSTEM
+// ════════════════════════════
+function buildPrompt(qType) {
+  const modeInstructions = {
+    concise:  'Keep the entire response under 180 words. Be direct.',
+    detailed: 'Give a thorough answer up to 350 words with real-world context.',
+    code:     'Prioritize working code examples. Show code first, explain after.'
+  };
+  const typeInstructions = {
+    concept:    'Format: 1-2 sentence intro. If X has named parts: numbered list 1. **Name** — one sentence. One closing sentence.',
+    command:    'Format: 1 sentence what it does. Show command in code block. Sample output. Keyboard controls table if relevant.',
+    coding:     'Format: Brief explanation, then working code block with comments. Then time/space complexity.',
+    sysdesign:  'Format: Short overview (2 sentences). Numbered list of key components. Then tradeoffs.',
+    behavioral: 'Format: STAR method — Situation → Task → Action → Result. First person, confident, specific.',
+    general:    'Format: 2-4 plain confident sentences. Direct answer first.'
+  };
+
+  let prompt = `You are an expert technical interview coach answering live interview questions.
+
+STRICT RULES:
+- Start immediately. No "Sure!", "Great question!", or preamble.
+- Never repeat or echo the question.
+- ${modeInstructions[CFG.mode]}
+- Language: ${getLangInstruction()}
+
+QUESTION TYPE: ${qType.toUpperCase()}
+${typeInstructions[qType] || typeInstructions.general}`;
+
+  // Job description context
+  if (CFG.jobDesc && CFG.jobDesc.trim().length > 10) {
+    prompt += `
+
+=== JOB DESCRIPTION (reference for relevance) ===
+${CFG.jobDesc.slice(0, 1000)}
+=== END JD ===
+Tailor answers to match the skills and requirements in this job description when relevant.`;
+  }
+
+  // Extra documents
+  if (DOCS.length > 0) {
+    prompt += `
+
+=== ADDITIONAL CONTEXT DOCUMENTS ===
+${DOCS.map(d => `[${d.name}]: ${d.text}`).join('\n---\n').slice(0, 2000)}
+=== END DOCUMENTS ===
+Reference these documents when relevant to the question.`;
+  }
+
+  // Resume (behavioral only)
+  if (RESUME.raw && (qType === 'behavioral' || qType === 'general')) {
+    prompt += `
+
+=== CANDIDATE PROFILE (never output this directly) ===
+Name: ${RESUME.name}
+Skills: ${RESUME.skills.join(', ')}
+Experience: ${RESUME.experience.slice(0, 5).join(' | ')}
+=== END PROFILE ===
+For personal questions: first person using candidate's background. For technical: answer from knowledge.`;
+  }
+
+  return prompt;
+}
+
+// ════════════════════════════
+// MEMORY
+// ════════════════════════════
+function pushMemory(role, content) {
+  MEMORY.push({ role, content });
+  while (MEMORY.length > MEMORY_LIMIT * 2) MEMORY.shift();
+  updateMemoryUI();
+}
+
+function updateMemoryUI() {
+  const pairs = Math.floor(MEMORY.length / 2);
+  [memDots, mMemDots].forEach(el => {
+    if (!el) return;
+    el.innerHTML = '';
+    for (let i = 0; i < MEMORY_LIMIT; i++) {
+      const d = document.createElement('div');
+      d.className = (el === memDots ? 'mem-dot' : 'm-mem-dot') + (i < pairs ? ' used' : '');
+      el.appendChild(d);
+    }
+  });
+  if (memCount) memCount.textContent = pairs + ' / ' + MEMORY_LIMIT;
+  if (mMemCount) mMemCount.textContent = pairs + '/' + MEMORY_LIMIT;
+}
+
+function buildMessages(question, qType) {
+  const msgs = [{ role: 'system', content: buildPrompt(qType) }];
+  if (MEMORY.length > 0) msgs.push(...MEMORY);
+  msgs.push({ role: 'user', content: question });
+  return msgs;
+}
+
+// ════════════════════════════
+// TRANSCRIPT — shared between both views
+// ════════════════════════════
+function getActiveEl() { return IS_MOBILE() ? mTxEl : txEl; }
+function getApiKey()   { return (mApiKeyEl.value || apiKeyEl.value).trim(); }
+
+function updateTx() {
+  // no-op — transcript managed directly via innerText in speech handlers
+}
+
+function getQ() { return getActiveEl().innerText.trim(); }
+
+function clearTx() {
+  finalTranscript = '';
+  interimTranscript = '';
+  dgFinalText = '';
+  dgInterimText = '';
+  MIC.sessionText = '';
+  MIC.speechBuffer = '';
+  questionBuffer = [];
+  lastDetectedQuestion = '';
+  _lastRenderedTx = '';
+  updateDetectedQuestionUI();
+  [txEl, mTxEl].forEach(el => { if (el) el.innerText = ''; });
+  if (txChars) txChars.textContent = '0 chars';
+  if (mTxChars) mTxChars.textContent = '0 chars';
+}
+
+function inject(text) { mInject(text); }
+function mInject(text) {
+  finalTranscript = text;
+  interimTranscript = '';
+  dgFinalText = text;
+  dgInterimText = '';
+  [txEl, mTxEl].forEach(el => { if (el) el.innerText = text; });
+  const len = text.length;
+  if (txChars) txChars.textContent = len + ' chars';
+  if (mTxChars) mTxChars.textContent = len + ' chars';
+  const el = getActiveEl();
+  const r = document.createRange(), s = window.getSelection();
+  r.selectNodeContents(el); r.collapse(false);
+  s.removeAllRanges(); s.addRange(r);
+}
+
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// DEEPGRAM MICROPHONE SYSTEM v4.0 — Ultra-low latency transcription
+// Replaces Parakeet Whisper system with Deepgram nova-2 WebSocket streaming
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── DEEPGRAM CONFIG ──────────────────────────────────────────────────────
+const DEEPGRAM_WS_URL = 'wss://api.deepgram.com/v1/listen';
+const DEEPGRAM_MODEL  = 'nova-2';
+const DEEPGRAM_LANG   = 'en-US';
+
+// ── FILLER WORDS FOR QUESTION EXTRACTION ─────────────────────────────────
+const FILLER_WORDS = new Set([
+  'okay', 'ok', 'so', 'like', 'basically', 'you know', 'um', 'uh',
+  'right', 'well', 'actually', 'literally', 'i mean', 'kind of',
+  'sort of', 'anyway', 'anyways', 'and also', 'also', 'just',
+]);
+
+// ── DEEPGRAM STATE ──────────────────────────────────────────────────────
+let dgSocket       = null;
+let dgMediaRecorder = null;
+let dgAudioStream  = null;
+let dgFinalText    = '';
+let dgInterimText  = '';
+let dgReconnectTimer = null;
+let dgUiDebounce   = null;
+
+// Keep legacy flags for compatibility with generateAnswer() etc.
+// MIC object is kept as a minimal stub
+const MIC = {
+  sessionText:   '',
+  speechBuffer:  '',
+  isRecording:   false,
+  isSpeaking:    false,
+  silenceStart:  0,
+  lastSpeechTime: 0,
+  pauseTimer:    null,
+  pauseThresholdMs: 1200,
+  blobQueue:     [],
+  queueBusy:     false,
+  chunkBuf:      [],
+  chunkTimer:    null,
+  recorder:      null,
+  stream:        null,
+  audioCtx:      null,
+  analyser:      null,
+  source:        null,
+  silenceRaf:    null,
+  waveRaf:       null,
+};
+const MIC_CFG = {
+  LLM_CLEANUP: false, // Deepgram handles cleanup
+};
+
+// ── POISON PHRASE LIST (kept for validation compatibility) ────────────────
+const POISON_PHRASES = [
+  "speech transcript cleaner", "i'm a speech", "i am a speech",
+  "as a speech", "transcript cleaner", "i cannot",
+  "i'm sorry", "i apologize", "here is the", "here's the",
+  "the corrected", "corrected version", "cleaned version",
+  "cleaned transcript", "sure, here", "of course",
+];
+
+// ── HELPER FUNCTIONS ─────────────────────────────────────────────────────
+
+function getDeepgramKey() {
+  return (mDeepgramKeyEl?.value || deepgramKeyEl?.value || '').trim();
+}
+
+function getPreferredMimeType() {
+  const types = [
+    'audio/webm;codecs=opus', 'audio/webm',
+    'audio/ogg;codecs=opus', 'audio/mp4',
+  ];
+  for (const t of types) {
+    if (MediaRecorder.isTypeSupported(t)) return t;
+  }
+  return '';
+}
+
+function isValidTranscript(text) {
+  if (!text || typeof text !== 'string') return false;
+  const t = text.trim();
+  if (t.length < 3) return false;
+  const lower = t.toLowerCase();
+  for (const phrase of POISON_PHRASES) {
+    if (lower.includes(phrase)) return false;
+  }
+  return true;
+}
+
+function isValidSpeech(text) {
+  if (!text) return false;
+  const t = text.trim();
+  if (t.length < 6) return false;
+  if (/^(da\s*)+$/i.test(t)) return false;
+  if (/^(hmm\s*)+$/i.test(t)) return false;
+  if (/^(uh\s*)+$/i.test(t)) return false;
+  if (/^(um\s*)+$/i.test(t)) return false;
+  if (t.split(/\s+/).length < 2) return false;
+  return true;
+}
+
+// ── TRANSCRIPT DISPLAY ──────────────────────────────────────────────────
+const MAX_UI_CHARS = 200;
+
+function updateUI(text) {
+  const full = (text || '').trim();
+  const trimmed = full.length > MAX_UI_CHARS ? full.slice(-MAX_UI_CHARS) : full;
+
+  if (dgUiDebounce) cancelAnimationFrame(dgUiDebounce);
+  dgUiDebounce = requestAnimationFrame(() => {
+    const m = document.getElementById('mTxText');
+    if (m) {
+      if (m.tagName === 'TEXTAREA') m.value = trimmed;
+      else m.innerText = trimmed;
+      m.scrollTop = m.scrollHeight;
+    }
+    const d = document.getElementById('txText');
+    if (d) {
+      if (d.tagName === 'TEXTAREA') d.value = trimmed;
+      else d.innerText = trimmed;
+      d.scrollTop = d.scrollHeight;
+    }
+    const len = full.length;
+    if (txChars) txChars.textContent = len + ' chars';
+    if (mTxChars) mTxChars.textContent = len + ' chars';
+  });
+}
+
+function renderTranscript() {
+  updateUI(dgFinalText + (dgInterimText ? ' ' + dgInterimText : ''));
+}
+
+function syncTranscriptFromDOM() {
+  const isMob = window.innerWidth <= 768;
+  const target = isMob ? mTxEl : txEl;
+  if (!target) return;
+  const text = (target.tagName === 'TEXTAREA' ? target.value : target.innerText).trim();
+  dgFinalText = text;
+  finalTranscript = text;
+  interimTranscript = '';
+  dgInterimText = '';
+  MIC.sessionText = text;
+}
+
+// ── DEEPGRAM WEBSOCKET — CORE ENGINE ────────────────────────────────────
+
+function initDeepgram() {
+  const key = getDeepgramKey();
+  if (!key) {
+    setStatus('Enter your Deepgram API key in Settings', 'error');
+    showToast('Add Deepgram key in Settings \u2699');
+    openSettings();
+    return false;
+  }
+  return true;
+}
+
+function startListening() {
+  if (MIC.isRecording) return;
+
+  if (!initDeepgram()) return;
+
+  // Reset all state for new session
+  dgFinalText = '';
+  dgInterimText = '';
+  finalTranscript = '';
+  interimTranscript = '';
+  MIC.sessionText = '';
+  MIC.speechBuffer = '';
+  MIC.lastSpeechTime = Date.now();
+  questionBuffer = [];
+  lastDetectedQuestion = '';
+  updateDetectedQuestionUI();
+  updateUI('');
+
+  // Acquire mic
+  navigator.mediaDevices.getUserMedia({
+    audio: {
+      noiseSuppression: true,
+      echoCancellation: true,
+      autoGainControl: true,
+      sampleRate: { ideal: 16000 },
+      channelCount: 1,
+    }
+  }).then(stream => {
+    dgAudioStream = stream;
+
+    const params = new URLSearchParams({
+      model: DEEPGRAM_MODEL,
+      language: DEEPGRAM_LANG,
+      smart_format: 'true',
+      interim_results: 'true',
+      endpointing: '100',
+      punctuate: 'true',
+      diarize: 'false',
+      vad_events: 'true',
+      utterances: 'true',
+    });
+
+    const key = getDeepgramKey();
+    const wsUrl = `${DEEPGRAM_WS_URL}?${params.toString()}`;
+
+    try {
+      dgSocket = new WebSocket(wsUrl, ['token', key]);
+    } catch (err) {
+      setStatus('Failed to connect to Deepgram: ' + err.message, 'error');
+      return;
+    }
+
+    dgSocket.onopen = () => {
+      MIC.isRecording = true;
+      MIC.isSpeaking = false;
+      isListening = true;
+      setMicUI(true);
+      setStatus('Deepgram Listening \u2014 nova-2 active', 'active');
+
+      const mimeType = getPreferredMimeType();
+      const recorderOpts = mimeType ? { mimeType } : {};
+
+      try {
+        dgMediaRecorder = new MediaRecorder(dgAudioStream, recorderOpts);
+      } catch (_) {
+        dgMediaRecorder = new MediaRecorder(dgAudioStream);
+      }
+
+      dgMediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0 && dgSocket && dgSocket.readyState === WebSocket.OPEN) {
+          dgSocket.send(event.data);
+        }
+      };
+
+      // 100ms chunks for ultra-low latency
+      dgMediaRecorder.start(100);
+
+      console.log('[Deepgram] Connected \u2014 streaming audio to nova-2');
+    };
+
+    dgSocket.onmessage = (message) => {
+      try {
+        const received = JSON.parse(message.data);
+
+        switch (received.type) {
+          case 'Results':
+            handleDeepgramResult(received);
+            break;
+          case 'SpeechStarted':
+            MIC.isSpeaking = true;
+            break;
+          case 'UtteranceEnd':
+            MIC.isSpeaking = false;
+            runQuestionDetection();
+            break;
+          case 'Metadata':
+            console.log('[Deepgram] Metadata:', received);
+            break;
+          case 'Error':
+            console.error('[Deepgram] Server error:', received);
+            setStatus('Deepgram error: ' + (received.description || 'Unknown'), 'error');
+            break;
+        }
+      } catch (err) {
+        // Ignore parse errors for keep-alive
+      }
+    };
+
+    dgSocket.onerror = (err) => {
+      console.error('[Deepgram] WebSocket error:', err);
+      setStatus('Connection error \u2014 check your Deepgram API key', 'error');
+    };
+
+    dgSocket.onclose = (event) => {
+      console.log('[Deepgram] WebSocket closed:', event.code, event.reason);
+      if (MIC.isRecording) {
+        cleanupDeepgram();
+        setStatus('Deepgram disconnected \u2014 click Listen to reconnect', '');
+      }
+    };
+
+  }).catch(err => {
+    const denied = err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError';
+    const notFound = err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError';
+    const notSecure = !window.isSecureContext;
+
+    let msg, steps;
+    if (notSecure) {
+      msg = 'Mic requires HTTPS. This page is not served securely.';
+      steps = 'Fix: Host this file via HTTPS (e.g. GitHub Pages, Netlify) or open in iOS Safari from Files app.\n\nFallback: Use the "Try Fallback" button which uses built-in browser speech.';
+    } else if (denied) {
+      msg = 'Microphone permission was denied.';
+      steps = getUserAgentMicSteps();
+    } else if (notFound) {
+      msg = 'No microphone found on this device.';
+      steps = 'Make sure a microphone is connected or enabled.';
+    } else {
+      msg = 'Could not open microphone: ' + err.message;
+      steps = 'Try tapping "Grant Mic Access" or use the text input instead.';
+    }
+
+    setStatus(msg, 'error');
+    setMobileStatus('Mic blocked', false);
+    showMicBanner(msg, steps);
+    showToast('Mic blocked — see banner for fix');
+  });
+}
+
+// ══════════════════════════════
+// MIC PERMISSION & FALLBACK HELPERS
+// ══════════════════════════════
+
+function getUserAgentMicSteps() {
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/.test(ua);
+  const isAndroid = /Android/.test(ua);
+  const isChrome = /Chrome/.test(ua);
+  const isSafari = /Safari/.test(ua) && !isChrome;
+
+  if (isIOS && isSafari) {
+    return 'iOS Safari: Go to Settings > Safari > Microphone and allow this site. Then reload the page.';
+  } else if (isIOS && isChrome) {
+    return 'iOS Chrome: Go to Settings > Chrome > Microphone and enable it. Then reload.';
+  } else if (isAndroid && isChrome) {
+    if (!window.isSecureContext) {
+      return 'Android Chrome requires HTTPS for mic access. Host this file on GitHub Pages or Netlify (free), or try the Fallback button below.';
+    }
+    return 'Android Chrome: Tap the lock icon in the address bar > Site settings > Microphone > Allow. Then reload.';
+  }
+  return 'Go to your browser settings and allow microphone access for this page, then reload.';
+}
+
+function showMicBanner(msg, steps) {
+  const banner = document.getElementById('micPermBanner');
+  const msgEl = document.getElementById('micPermMsg');
+  const stepsEl = document.getElementById('micPermSteps');
+  if (banner) banner.classList.add('show');
+  if (msgEl) msgEl.textContent = msg;
+  if (stepsEl) stepsEl.textContent = steps || '';
+}
+
+function hideMicBanner() {
+  const banner = document.getElementById('micPermBanner');
+  if (banner) banner.classList.remove('show');
+}
+
+async function requestMicPermission() {
+  hideMicBanner();
+  if (!window.isSecureContext) {
+    showMicBanner(
+      'HTTPS required for microphone on this browser.',
+      'Host this HTML file on a secure server (GitHub Pages, Netlify, Vercel are free). OR: on iOS, open from the Files app in Safari which allows mic on local files.'
+    );
+    return;
+  }
+  try {
+    // Explicit permission request — triggers the system dialog
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach(t => t.stop()); // release immediately
+    showToast('Mic permission granted! Tap Listen now.');
+    hideMicBanner();
+  } catch (err) {
+    const steps = getUserAgentMicSteps();
+    showMicBanner('Still blocked: ' + err.message, steps);
+  }
+}
+
+// Web Speech API fallback — works on iOS Safari (file:// too) and desktop
+let wsrRecognition = null;
+let wsrActive = false;
+
+function tryWebSpeechFallback() {
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRec) {
+    showToast('Web Speech not supported in this browser. Try Safari on iOS.');
+    return;
+  }
+  if (wsrActive) {
+    stopWebSpeechFallback();
+    return;
+  }
+
+  hideMicBanner();
+  wsrRecognition = new SpeechRec();
+  wsrRecognition.continuous = true;
+  wsrRecognition.interimResults = true;
+  wsrRecognition.lang = 'en-US';
+
+  let finalTxt = '';
+
+  wsrRecognition.onstart = () => {
+    wsrActive = true;
+    isListening = true;
+    MIC.isRecording = true;
+    setMicUI(true);
+    setStatus('Listening (WebSpeech fallback)', 'active');
+    setMobileStatus('Listening...', true);
+    showToast('Fallback mic active');
+    // Show WSR badge
+    const badge = document.getElementById('wsrBadge');
+    if (badge) badge.classList.add('show');
+  };
+
+  wsrRecognition.onresult = (event) => {
+    let interim = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const t = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        finalTxt += t + ' ';
+        dgFinalText = finalTxt.trim();
+        finalTranscript = dgFinalText;
+        MIC.sessionText = dgFinalText;
+        MIC.speechBuffer = dgFinalText;
+        MIC.lastSpeechTime = Date.now();
+        dgInterimText = '';
+        scheduleLiveDetection();
+      } else {
+        interim = t;
+        dgInterimText = interim;
+        interimTranscript = interim;
+      }
+    }
+    updateUIOptimized(finalTxt + interim);
+  };
+
+  wsrRecognition.onerror = (event) => {
+    if (event.error === 'not-allowed') {
+      stopWebSpeechFallback();
+      showMicBanner(
+        'Web Speech also blocked.',
+        getUserAgentMicSteps() + '\n\nOn Android: HTTPS is required. Host on GitHub Pages (free) to enable mic.'
+      );
+    } else if (event.error !== 'no-speech') {
+      console.warn('[WebSpeech] error:', event.error);
+    }
+  };
+
+  wsrRecognition.onend = () => {
+    if (wsrActive) {
+      // Auto-restart to keep it continuous
+      try { wsrRecognition.start(); } catch (e) {}
+    } else {
+      isListening = false;
+      MIC.isRecording = false;
+      setMicUI(false);
+      const badge = document.getElementById('wsrBadge');
+      if (badge) badge.classList.remove('show');
+    }
+  };
+
+  try {
+    wsrRecognition.start();
+  } catch (e) {
+    showToast('Could not start Web Speech: ' + e.message);
+  }
+}
+
+function stopWebSpeechFallback() {
+  wsrActive = false;
+  if (wsrRecognition) {
+    try { wsrRecognition.stop(); } catch (e) {}
+    wsrRecognition = null;
+  }
+  isListening = false;
+  MIC.isRecording = false;
+  setMicUI(false);
+  setStatus('Mic off', '');
+  setMobileStatus('Ready', false);
+}
+
+function handleDeepgramResult(received) {
+  const channel = received.channel;
+  if (!channel || !channel.alternatives || !channel.alternatives.length) return;
+
+  const alt = channel.alternatives[0];
+  const transcript = alt.transcript;
+  if (!transcript) return;
+
+  if (received.is_final) {
+    if (dgFinalText) {
+      dgFinalText += ' ' + transcript.trim();
+    } else {
+      dgFinalText = transcript.trim();
+    }
+    dgInterimText = '';
+
+    // Sync to legacy vars
+    finalTranscript = dgFinalText;
+    interimTranscript = '';
+
+    // Update session text
+    const sep = MIC.sessionText && !MIC.sessionText.endsWith(' ') ? ' ' : '';
+    MIC.sessionText += sep + transcript.trim();
+
+    // Update speech segment buffer
+    const segSep = MIC.speechBuffer && !MIC.speechBuffer.endsWith(' ') ? ' ' : '';
+    MIC.speechBuffer += segSep + transcript.trim();
+    MIC.lastSpeechTime = Date.now();
+  } else {
+    dgInterimText = transcript.trim();
+    interimTranscript = dgInterimText;
+  }
+
+  // Update UI with optimized diff-based rendering
+  const displayText = dgFinalText + (dgInterimText ? ' ' + dgInterimText : '');
+  updateUIOptimized(displayText);
+
+  // Schedule question detection on every transcript update (debounced)
+  scheduleLiveDetection();
+}
+
+function stopListening() {
+  cleanupDeepgram();
+  setStatus('Mic paused', '');
+}
+
+function cleanupDeepgram() {
+  MIC.isRecording = false;
+  isListening = false;
+
+  if (dgMediaRecorder && dgMediaRecorder.state !== 'inactive') {
+    try { dgMediaRecorder.stop(); } catch (e) {}
+  }
+  dgMediaRecorder = null;
+
+  if (dgSocket && dgSocket.readyState === WebSocket.OPEN) {
+    try {
+      dgSocket.send(JSON.stringify({ type: 'CloseStream' }));
+      dgSocket.close();
+    } catch (e) {}
+  }
+  dgSocket = null;
+
+  if (dgAudioStream) {
+    dgAudioStream.getTracks().forEach(track => track.stop());
+    dgAudioStream = null;
+  }
+
+  dgInterimText = '';
+  interimTranscript = '';
+  finalTranscript = dgFinalText;
+
+  updateUI(MIC.sessionText);
+  setMicUI(false);
+}
+
+// toggleMic is defined after fallback helpers below
+
+// Backward-compat aliases
+function startHybrid() { startListening(); }
+function stopHybrid() {
+  if (wsrActive) { stopWebSpeechFallback(); }
+  else { stopListening(); }
+}
+function startRecording() { startListening(); }
+function stopRecording() { stopListening(); }
+
+// Re-declare toggleMic to handle WSR fallback
+function toggleMic() {
+  if (wsrActive) { stopWebSpeechFallback(); return; }
+  if (MIC.isRecording) stopListening();
+  else startListening();
+}
+
+// ── LOCALHOST GUIDE MODAL ────────────────────────────────────────────────────
+function openLhModal() {
+  const m = document.getElementById('lhModal');
+  if (m) m.classList.add('show');
+}
+function closeLhModal() {
+  const m = document.getElementById('lhModal');
+  if (m) m.classList.remove('show');
+}
+
+// ── STARTUP PERMISSION CHECK ──────────────────────────────────────────────────
+(function checkMicOnStartup() {
+  if (window.innerWidth > 768) return;
+
+  const proto = window.location.protocol;
+  const host  = window.location.hostname;
+  const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host === '';
+  const isSecure = window.isSecureContext;
+  const isAndroid = /Android/.test(navigator.userAgent);
+
+  // Android with non-secure, non-localhost context (file://, content://, http://)
+  if (isAndroid && !isSecure && !isLocalhost) {
+    setTimeout(() => {
+      showMicBanner(
+        'Mic blocked on Android — HTTPS or localhost required.',
+        'You opened this file from ' + proto + ' which Android Chrome blocks. Tap "How to Fix" for a step-by-step guide to run a local server in 2 minutes.'
+      );
+    }, 600);
+    return;
+  }
+
+  if (!isSecure && !isLocalhost) {
+    setTimeout(() => {
+      showMicBanner(
+        'HTTPS required for microphone.',
+        'Open from a secure URL or localhost. Tap "How to Fix" for options.'
+      );
+    }, 600);
+    return;
+  }
+
+  // Secure context — check if permission already denied
+  if (navigator.permissions) {
+    navigator.permissions.query({ name: 'microphone' }).then(result => {
+      if (result.state === 'denied') {
+        setTimeout(() => {
+          showMicBanner('Microphone permission is denied.', getUserAgentMicSteps());
+        }, 600);
+      }
+    }).catch(() => {});
+  }
+})();
+
+// ── QUESTION DETECTION & EXTRACTION ────────────────────────────────────
+
+// Live detection timer
+let liveDetectTimer = null;
+
+function scheduleLiveDetection() {
+  if (liveDetectTimer) clearTimeout(liveDetectTimer);
+  liveDetectTimer = setTimeout(() => {
+    runQuestionDetection();
+  }, 300);
+}
+
+function runQuestionDetection() {
+  if (!MIC.speechBuffer.trim()) return;
+
+  const cleaned = cleanText(MIC.speechBuffer);
+  const extracted = extractLastQuestion(cleaned);
+
+  if (isQuestion(extracted) && extracted.length > 6 && extracted !== lastDetectedQuestion) {
+    lastDetectedQuestion = extracted;
+    questionBuffer.push({ question: extracted, time: Date.now() });
+    if (questionBuffer.length > 5) questionBuffer.shift();
+    console.log('[Deepgram] Question detected:', extracted);
+    updateDetectedQuestionUI();
+  }
+
+  // Auto-trigger with upgraded 1.5s debounce
+  if (AUTO_MODE && lastDetectedQuestion) {
+    upgradeAutoTrigger();
+  }
+}
+
+// ── TEXT CLEANUP & QUESTION EXTRACTION ─────────────────────────────────
+
+function rawFillerClean(text) {
+  return text
+    .replace(/\b(uh+|um+|hmm+|hm+|da da|mm+|ok|okay)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function cleanText(text) {
+  if (!text) return '';
+  text = text.replace(/\b(uh+|um+|hmm+|hm+|ok|okay|so|like|you know|basically|right|well|i mean)\b/gi, '');
+  text = text.replace(/\b(\w+)( \1\b)+/gi, '$1');
+  text = text.replace(/  +/g, ' ');
+  return text.trim();
+}
+
+function extractLastQuestion(text) {
+  if (!text) return '';
+  const parts = text.split(/(?<=[.?!])\s+|(?<=\n)/);
+  const sentences = parts.map(s => s.trim()).filter(s => s.length > 4);
+
+  // Walk backward — prefer the last sentence that looks like a question
+  for (let i = sentences.length - 1; i >= 0; i--) {
+    const s = sentences[i];
+    if (/^(uh+|um+|hmm+|hm+|ok|okay|da+)\s*$/i.test(s)) continue;
+    if (s.length < 5) continue;
+    if (isQuestion(s.toLowerCase())) return s.replace(/[.!,]+$/, '').trim();
+  }
+
+  // Fallback: return the last non-empty sentence
+  for (let i = sentences.length - 1; i >= 0; i--) {
+    const s = sentences[i].trim();
+    if (s.length > 4) return s.replace(/[.!,]+$/, '').trim();
+  }
+
+  return text.trim();
+}
+
+/**
+ * extractQuestion(text) — Enhanced question extraction
+ * Combines final + interim text, strips fillers, isolates the meaningful question.
+ */
+function extractQuestion(text) {
+  if (!text) return '';
+  const raw = (dgFinalText + ' ' + dgInterimText).replace(/\s+/g, ' ').trim();
+  if (!raw) return text;
+
+  const sentences = raw
+    .split(/(?<=[.?!])\s+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 3);
+
+  if (!sentences.length) return raw;
+
+  // 1. Find the last sentence that ends with '?'
+  let questionSentence = '';
+  for (let i = sentences.length - 1; i >= 0; i--) {
+    if (sentences[i].endsWith('?')) {
+      questionSentence = sentences[i];
+      break;
+    }
+  }
+
+  // 2. If no '?', take the last sentence > 4 words
+  if (!questionSentence) {
+    for (let i = sentences.length - 1; i >= 0; i--) {
+      const words = sentences[i].split(/\s+/).filter(w => w.length > 0);
+      if (words.length > 4) {
+        questionSentence = sentences[i];
+        break;
+      }
+    }
+  }
+
+  // 3. Fallback: last 12 words
+  if (!questionSentence) {
+    const words = raw.split(/\s+/);
+    questionSentence = words.slice(-12).join(' ');
+  }
+
+  // Strip fillers
+  let cleaned = questionSentence;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const filler of FILLER_WORDS) {
+      const prefix = filler + ' ';
+      if (cleaned.toLowerCase().startsWith(prefix)) {
+        cleaned = cleaned.slice(prefix.length).trim();
+        changed = true;
+        break;
+      }
+    }
+  }
+
+  if (cleaned.split(/\s+/).length < 3) {
+    const words = raw.split(/\s+/);
+    cleaned = words.slice(-12).join(' ');
+  }
+
+  if (!/[?!]$/.test(cleaned)) {
+    cleaned = cleaned.replace(/[.,;:]$/, '') + '?';
+  }
+
+  cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+  return cleaned;
+}
+
+function isQuestion(text) {
+  if (!text) return false;
+  const t = text.toLowerCase();
+  return [
+    '?', 'tell me', 'what is', 'what are', 'what was', 'what were',
+    'how ', 'why ', 'explain', 'difference between', 'can you',
+    'could you', 'describe', 'define', 'when did', 'where is',
+    'who is', 'which ', 'compare', 'give me', 'show me',
+    'talk about', 'discuss', 'elaborate', 'walk me through',
+  ].some(p => t.includes(p));
+}
+
+// ── DETECTED QUESTION UI ───────────────────────────────────────────────
+
+function updateDetectedQuestionUI() {
+  const q = lastDetectedQuestion;
+  const count = questionBuffer.length;
+  const label = count > 0 ? `buffer: ${count}/5` : '';
+
+  const dEl = document.getElementById('dqText');
+  const dCnt = document.getElementById('dqCount');
+  const dDot = document.getElementById('dqDot');
+  if (dEl) dEl.innerText = q || '';
+  if (dCnt) dCnt.textContent = label;
+  if (dDot) dDot.classList.toggle('active', !!q);
+
+  const mEl = document.getElementById('mDqText');
+  const mCnt = document.getElementById('mDqCount');
+  const mDot = document.getElementById('mDqDot');
+  if (mEl) mEl.innerText = q || '';
+  if (mCnt) mCnt.textContent = label;
+  if (mDot) mDot.classList.toggle('active', !!q);
+}
+
+function getLastQuestion() {
+  if (questionBuffer.length === 0) return '';
+  return questionBuffer[questionBuffer.length - 1].question;
+}
+
+// Keep onSpeechUpdate for backward compat
+function onSpeechUpdate(segmentText) {
+  runQuestionDetection();
+}
+
+// ── STUBS FOR REMOVED FUNCTIONS (backward compat) ──────────────────────
+
+function micDelay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function micTranscribeWithWhisper(blob) { return ''; }
+
+async function cleanTranscript(text) { return text; }
+
+async function processFinalTranscript(rawText) {
+  runQuestionDetection();
+}
+
+// ── MIC UI ────────────────────────────────────────────────────────────────
+function setMicUI(on) {
+  if (micLed) micLed.className = on ? 'mic-led on' : 'mic-led paused';
+  if (micLbl) micLbl.textContent = on ? 'Deepgram Live' : 'Mic paused';
+  if (micBtn) micBtn.classList.toggle('on', on);
+  if (micBtnLbl) micBtnLbl.textContent = on ? 'Stop' : 'Listen';
+  if (mMicBtn) mMicBtn.classList.toggle('on', on);
+  [txEl, mTxEl].forEach(el => el?.classList.toggle('listening', on));
+  if (on) {
+    setStatus('Listening \u2014 speak your question', 'active');
+    setMobileStatus('Listening...', true);
+    startTimer();
+  } else {
+    setStatus('Mic off', '');
+    setMobileStatus('Ready', false);
+    stopTimer();
+  }
+}
+
+async function generateAnswer(question, aiQuery) {
+  if (!question || question.trim().length < 3) return;
+  if (!getApiKey()) {
+    setStatus('Enter your API key', 'error');
+    showToast('Enter API key in Settings ⚙');
+    openSettings();
+    return;
+  }
+  if (isGenerating) return;
+
+  // Build AI query if not already provided (e.g. from auto-trigger)
+  if (!aiQuery) {
+    aiQuery = buildAIQuery(question);
+  }
+
+  document.activeElement?.blur();
+
+  const wasMicOn = isListening;
+  if (isListening) { syncTranscriptFromDOM(); stopHybrid(); }
+
+  isGenerating = true;
+  if (genBtn)  genBtn.disabled  = true;
+  if (mGenBtn) mGenBtn.disabled = true;
+
+  const q     = question.trim();
+  const qType = aiQuery.qType || classifyQuestion(q);
+  const isMob = IS_MOBILE();
+  const isFollowUp = aiQuery.isFollowUp || false;
+
+  if (emptyState) emptyState.style.display = 'none';
+  const mEmpty = document.getElementById('mEmpty');
+  if (mEmpty) mEmpty.style.display = 'none';
+
+  const bodyId = 'body_' + Date.now();
+
+  if (isMob) {
+    const card = document.createElement('div');
+    card.className = 'm-answer-card';
+    card.innerHTML = `
+      <div class="m-q-row">
+        <div class="m-q-icon"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>
+        <div style="flex:1"><div class="m-q-text">${esc(q)}</div></div>
+        <div class="m-q-badge" style="color:${TYPE_COLORS[qType]}">${TYPE_LABELS[qType]}</div>
+      </div>
+      <div class="m-a-section">
+        <div class="m-a-header">
+          <div class="m-a-avatar"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 110 20A10 10 0 0112 2zm1 5v5h3l-4 5-4-5h3V7h2z"/></svg></div>
+          <span class="m-a-model">${CFG.model}</span>
+          <div class="m-a-actions">
+            <button class="m-action-btn" onclick="copyAnswer('${bodyId}')">
+              <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy
+            </button>
+            <button class="m-action-btn" id="tts_${bodyId}" onclick="speakAnswer('${bodyId}')">
+              <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>Speak
+            </button>
+          </div>
+        </div>
+        <div class="m-skeleton">
+          <div class="m-skel-line" style="width:92%"></div>
+          <div class="m-skel-line" style="width:78%"></div>
+          <div class="m-skel-line" style="width:85%"></div>
+        </div>
+        <div class="m-a-body" id="${bodyId}" style="display:none"></div>
+      </div>`;
+    document.getElementById('mAnswersList').appendChild(card);
+    const mAnswers = document.getElementById('mAnswers');
+    setTimeout(() => mAnswers.scrollTo({ top: mAnswers.scrollHeight, behavior: 'smooth' }), 100);
+  } else {
+    const card = document.createElement('div');
+    card.className = 'answer-card';
+    card.innerHTML = `
+      <div class="q-bubble">
+        <div class="q-text">${esc(q)}<span class="q-type-badge" style="color:${TYPE_COLORS[qType]}">${TYPE_LABELS[qType]}</span></div>
+      </div>
+      <div class="a-wrap">
+        <div class="a-header">
+          <div class="a-avatar"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 110 20A10 10 0 0112 2zm1 5v5h3l-4 5-4-5h3V7h2z"/></svg></div>
+          <span style="font-size:11px;color:var(--text2);font-weight:500">${CFG.model}</span>
+          <span class="a-tag">${CFG.provider} ⚡</span>
+          ${RESUME.raw ? '<span class="a-tag res">📄</span>' : ''}
+          ${MEMORY.length > 0 ? '<span class="a-tag ctx">🔗 context</span>' : ''}
+          ${isFollowUp ? '<span class="a-tag">↩ follow-up</span>' : ''}
+          <button class="btn-copy" onclick="copyAnswer('${bodyId}')">
+            <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy
+          </button>
+          <button class="btn-tts-play" id="tts_${bodyId}" onclick="speakAnswer('${bodyId}')">
+            <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>Speak
+          </button>
+        </div>
+        <div class="skeleton">
+          <div class="skel-line" style="width:90%"></div>
+          <div class="skel-line" style="width:75%"></div>
+          <div class="skel-line" style="width:85%"></div>
+        </div>
+        <div class="a-body" id="${bodyId}" style="display:none"></div>
+      </div>`;
+    answersEl.appendChild(card);
+    setTimeout(() => answersEl.scrollTo({ top: answersEl.scrollHeight, behavior: 'smooth' }), 100);
+  }
+
+  clearTx();
+  setStatus('Generating...', 'active');
+  setMobileStatus('Thinking...', false);
+
+  const bodyEl = document.getElementById(bodyId);
+  const skelEl = document.querySelector(`#${bodyId}`).parentElement.querySelector(isMob ? '.m-skeleton' : '.skeleton');
+  let fullAnswer = '';
+
+  try {
+    // Build messages with context-aware prompt
+    const messages = buildMessagesWithContext(q, qType, aiQuery);
+    await streamAnswer(messages, bodyEl, skelEl, isMob, (chunk) => { fullAnswer += chunk; });
+
+    // Update context manager with this Q&A
+    contextManager.update(q, fullAnswer, qType);
+
+    pushMemory('user', q);
+    pushMemory('assistant', fullAnswer.slice(0, 800));
+    SESSION.push({ q, a: fullAnswer, type: qType, ts: Date.now(), model: CFG.model });
+    saveSession();
+    const cnt = '(' + SESSION.length + ')';
+    if (ansCount)  ansCount.textContent  = cnt;
+    if (mAnsCount) mAnsCount.textContent = SESSION.length;
+    if (CFG.tts && fullAnswer) speakAnswer(bodyId);
+  } catch (err) {
+    if (skelEl) skelEl.style.display = 'none';
+    bodyEl.style.display = 'block';
+    bodyEl.innerHTML = `<p style="color:var(--red)">⚠ ${esc(err.message)}</p>`;
+    setStatus('Error — check API key', 'error');
+    setMobileStatus('Error', false);
+    showToast('Error: ' + err.message);
+  }
+
+  isGenerating = false;
+  if (genBtn)  genBtn.disabled  = false;
+  if (mGenBtn) mGenBtn.disabled = false;
+  if (wasMicOn) setTimeout(startHybrid, 600);
+  else { setStatus('Done ✓', 'ok'); setMobileStatus('Done ✓', false); }
+}
+
+// ── AUTO MODE TOGGLE ─────────────────────────────────────────────
+function toggleAuto(el, isDesktop = false) {
+  AUTO_MODE = el.checked !== undefined ? el.checked : !AUTO_MODE;
+  console.log('[Filter] Auto mode:', AUTO_MODE);
+
+  // Mobile track
+  const mTrack = document.getElementById('mAutoTrack');
+  const mLbl   = document.getElementById('mAutoLbl');
+  const mBadge = document.getElementById('mAutoBadge');
+  if (mTrack) mTrack.classList.toggle('on', AUTO_MODE);
+  if (mLbl)   { mLbl.classList.toggle('on', AUTO_MODE); mLbl.textContent = AUTO_MODE ? 'Auto ON' : 'Auto'; }
+  if (mBadge) mBadge.classList.toggle('show', AUTO_MODE);
+
+  // Desktop track
+  const dTrack = document.getElementById('dAutoTrack');
+  const dLbl   = document.getElementById('dAutoLbl');
+  if (dTrack) dTrack.classList.toggle('on', AUTO_MODE);
+  if (dLbl)   dLbl.textContent = AUTO_MODE ? 'Auto ON' : 'Auto off';
+
+  if (AUTO_MODE) showToast('Auto mode ON — AI fires after silence');
+  else           showToast('Auto mode OFF — use ✨ AI Answer button');
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// INTELLIGENCE ENGINE v1.0 — Context, Follow-up, Smart Extraction, Auto-Answer
+// ════════════════════════════════════════════════════════════════════════════════
+
+// ── 1. CONTEXT MANAGER ─────────────────────────────────────────────────────
+
+const CTX = {
+  history: [],
+  maxHistory: 10,
+  topic: '',
+  lastQuestion: '',
+  lastAnswer: '',
+  lastKeywords: [],
+  isFollowUp: false,
+};
+
+const TECH_ENTITIES = new Set([
+  'java','python','javascript','typescript','react','node','spring','kubernetes',
+  'docker','aws','azure','gcp','linux','sql','mongodb','redis','kafka','git',
+  'jenkins','ansible','terraform','bash','weblogic','jboss','nginx','apache',
+  'microservices','rest','graphql','ci/cd','devops','agile','scrum','c++','go',
+  'rust','php','ruby','swift','kotlin','flutter','vue','angular','next.js',
+  'mysql','postgresql','elasticsearch','rabbitmq','consul','prometheus',
+  'grpc','protobuf','maven','gradle','jvm','garbage collection','thread',
+  'singleton','factory','observer','strategy','adapter','bridge','composite',
+  'decorator','facade','proxy','mvc','mvvm','http','tcp','udp','dns','ssl',
+  'tls','oauth','jwt','websocket','api','sdk','cli','gui','oop','functional',
+  'solid','dry','yaml','json','xml','html','css','sass','webpack','babel',
+  'npm','pip','ec2','s3','lambda','ecs','eks','rds','dynamodb','vault',
+  'nginx','ha','load balancer','cdn','cache','redis','memcached',
+  'message queue','pub/sub','event driven','soa','monolith','serverless',
+  'weblogic','websphere','tomcat','wildfly','ejb','jpa','hibernate',
+  'jms','jmx','servlet','jsp','jdbc','jndi','jax-rs','jax-ws',
+  'jta','rmi','netty','vert.x','akka','spark','hadoop','flink','kafka',
+  'zookeeper','cassandra','hbase','hive','sqoop','airflow','docker',
+  'consul','etcd','raft','paxos','cap theorem','acid','base','oltp','olap',
+  'etl','batch','streaming','latency','throughput','availability',
+  'durability','consistency','partition tolerance','clustering',
+  'deployment','failover','top','ps','grep','awk','sed','cat','chmod',
+  'chown','kill','cron','systemctl','iptables','tcpdump','netstat','lsof',
+  'react','angular','vue','redux','mobx','context','hooks','components',
+  'state management','routing','middleware','authentication','authorization',
+  'encryption','hashing','salting','token','session','cookie','cors',
+  'typescript','interface','generic','enum','decorator','namespace','module',
+  'bun','deno','node','express','koa','fastify','nestjs','svelte','solidjs',
+]);
+
+const contextManager = {
+  update(question, answer, qType) {
+    const topic = this._extractTopic(question);
+    const intent = this._classifyIntent(question);
+    const keywords = this._extractKeywords(question + ' ' + (answer || '').slice(0, 200));
+    const entry = {
+      topic, intent, question,
+      answerSummary: (answer || '').slice(0, 300),
+      keywords,
+      qType: qType || classifyQuestion(question),
+      ts: Date.now(),
+    };
+    CTX.history.push(entry);
+    while (CTX.history.length > CTX.maxHistory) CTX.history.shift();
+    CTX.topic = topic;
+    CTX.lastQuestion = question;
+    CTX.lastAnswer = (answer || '').slice(0, 300);
+    CTX.lastKeywords = keywords;
+    console.log('[Context] Updated:', { topic, intent, kw: keywords.slice(0, 5) });
+  },
+
+  getContext() {
+    return {
+      topic: CTX.topic,
+      lastQuestion: CTX.lastQuestion,
+      lastAnswer: CTX.lastAnswer,
+      lastKeywords: CTX.lastKeywords,
+      historyLength: CTX.history.length,
+      recentHistory: CTX.history.slice(-3),
+    };
+  },
+
+  _extractTopic(text) {
+    if (!text) return '';
+    const lower = text.toLowerCase();
+    let best = '', bestScore = 0;
+    for (const entity of TECH_ENTITIES) {
+      if (lower.includes(entity)) {
+        const score = entity.length + (entity.includes(' ') ? 5 : 0);
+        if (score > bestScore) { bestScore = score; best = entity; }
+      }
+    }
+    return best;
+  },
+
+  _classifyIntent(text) {
+    if (!text) return 'unknown';
+    const t = text.toLowerCase().trim();
+    if (/^(why|how come|what reason)/.test(t)) return 'reasoning';
+    if (/^(how|what steps|what is the process|walk me)/.test(t)) return 'process';
+    if (/^(what|define|describe|tell me about|explain|elaborate)/.test(t)) return 'explanation';
+    if (/^(difference|compare|versus|vs|contrast)/.test(t)) return 'comparison';
+    if (/^(can you|could you|is it|do you|does|will|would|should)/.test(t)) return 'confirmation';
+    if (/^(write|code|implement|create|build|design|develop)/.test(t)) return 'coding';
+    if (/^\s*(ok|so|like|basically|well|hmm|uh|um)\s*(why|how|what|and|but)/i.test(t)) return 'follow_up';
+    return 'question';
+  },
+
+  _extractKeywords(text) {
+    if (!text) return [];
+    const lower = text.toLowerCase();
+    const found = new Set();
+    for (const entity of TECH_ENTITIES) {
+      if (lower.includes(entity) && entity.length > 2) found.add(entity);
+    }
+    return [...found].slice(0, 8);
+  },
+};
+
+// ── 2. CROSS-QUESTION (FOLLOW-UP) DETECTION ────────────────────────────────
+
+const FOLLOW_UP_PATTERNS = [
+  /^\s*(why\??)\s*why\b/i, /^\s*(how\??)\s*how\b/i,
+  /^\s*(what\??)\s*what about\b/i, /^\s*and\s+(what|how|why|where|when|who|which|can|do|is)/i,
+  /^\s*(ok|so|like|well|hmm|um+|uh+)\s*(why|how|what|and|but|explain|tell)/i,
+  /\b(it|they|them|this|that|these|those|its|their)\s+(handle|work|do|does|is|are|can|could|would|should|support|have|use)/i,
+  /\b(difference|vs|versus|compared|between\s+them|between\s+the\s+two)/i,
+  /\b(can you|could you|please)\s+(explain\s+more|elaborate|tell\s+me\s+more|go\s+into\s+detail|expand)/i,
+  /\b(more|more\s+about|detail|deeper|in\s+depth)/i,
+  /\bwhat\s+(about|if|else|other|next|then)/i,
+  /\bhow\s+(about|does|do|can|is|would|will|to)/i,
+  /\bwhy\s+(is|does|do|would|should|can't|doesn't|don't|not)/i,
+  /\b(give\s+me|show\s+me|tell\s+me)\s+(an?\s+)?(example|more|detail)/i,
+  /\b(explain|clarify|elaborate)\s+(that|this|it|the\s+above|further|more)/i,
+  /\b(performance|speed|scalab|efficiency|latency|throughput|benchmark)/i,
+  /\bpros?\s+and\s+cons?\b/i,
+  /\b(similar|different|same|better|worse|alternative)/i,
+];
+
+function detectFollowUp(currentText) {
+  if (!currentText || !CTX.lastQuestion) {
+    return { isFollowUp: false, mergedQuestion: currentText };
+  }
+  const t = currentText.trim();
+  if (t.length < 2) return { isFollowUp: false, mergedQuestion: t };
+
+  let isFU = false;
+  for (const pattern of FOLLOW_UP_PATTERNS) {
+    if (pattern.test(t)) { isFU = true; break; }
+  }
+  const wordCount = t.split(/\s+/).length;
+  if (!isFU && wordCount <= 4 && CTX.lastQuestion.length > 15) isFU = true;
+
+  if (!isFU) return { isFollowUp: false, mergedQuestion: t };
+
+  CTX.isFollowUp = true;
+  const prevTopic = CTX.topic;
+  let merged = t;
+
+  if (prevTopic) {
+    merged = merged.replace(/\b(it)\b/gi, prevTopic).replace(/\b(they|them)\b/gi, prevTopic);
+  }
+
+  const startsWithQWord = /^(why|how|what|when|where|who|which|can|could|is|do|does|will|should)/i.test(merged);
+  if (startsWithQWord && wordCount <= 6 && prevTopic) {
+    if (!merged.toLowerCase().includes(prevTopic.toLowerCase())) {
+      merged = prevTopic + ' — ' + merged;
+    }
+  }
+
+  if (/\b(difference|vs|versus|compared|between)/i.test(t) && prevTopic) {
+    if (!merged.toLowerCase().includes(prevTopic.toLowerCase())) {
+      merged = prevTopic + ' vs ' + merged.replace(/^(the\s+)?difference\s*(between\s+)?/i, '').replace(/^\s*(vs|versus)\s*/i, '');
+    }
+  }
+
+  if (!/[?]$/.test(merged)) merged = merged.replace(/[.,;:!]+$/, '') + '?';
+  console.log('[FollowUp] YES — merged:', merged);
+  return { isFollowUp: true, mergedQuestion: merged };
+}
+
+// ── 3. BUILD AI QUERY (unified entry point) ────────────────────────────────
+
+function buildAIQuery(rawQuestion) {
+  if (!rawQuestion) return { question: '', qType: 'general', isFollowUp: false, context: null };
+  const { isFollowUp, mergedQuestion } = detectFollowUp(rawQuestion);
+  const question = mergedQuestion;
+  const qType = classifyQuestion(question);
+  const context = contextManager.getContext();
+  console.log('[AIQuery] question:', question, '| FollowUp:', isFollowUp, '| topic:', context.topic);
+  return { question, qType, isFollowUp, context };
+}
+
+// ── 4. CONTEXT-BASED PROMPT BUILDER ───────────────────────────────────────
+
+function buildPromptWithContext(qType, aiQuery) {
+  const isFU = aiQuery.isFollowUp;
+  const ctx = aiQuery.context;
+
+  const modeInstructions = {
+    concise: 'Keep the entire response under 180 words. Be direct.',
+    detailed: 'Give a thorough answer up to 350 words with real-world context.',
+    code: 'Prioritize working code examples. Show code first, explain after.',
+  };
+  const typeInstructions = {
+    concept: 'Format: 1-2 sentence intro. If X has named parts: numbered list 1. **Name** — one sentence. One closing sentence.',
+    command: 'Format: 1 sentence what it does. Show command in code block. Sample output. Keyboard controls table if relevant.',
+    coding: 'Format: Brief explanation, then working code block with comments. Then time/space complexity.',
+    sysdesign: 'Format: Short overview (2 sentences). Numbered list of key components. Then tradeoffs.',
+    behavioral: 'Format: STAR method — Situation → Task → Action → Result. First person, confident, specific.',
+    general: 'Format: 2-4 plain confident sentences. Direct answer first.',
+  };
+
+  let prompt = `You are an expert technical interview coach answering live interview questions.
+
+STRICT RULES:
+- Start immediately. No "Sure!", "Great question!", or preamble.
+- Never repeat or echo the question.
+- ${modeInstructions[CFG.mode]}
+- Language: ${getLangInstruction()}`;
+
+  if (ctx && ctx.historyLength > 0) {
+    prompt += `\n\n=== CONVERSATION CONTEXT ===
+- Topic being discussed: ${ctx.topic || 'General'}
+- Previous question: ${ctx.lastQuestion || 'None'}
+- Number of exchanges so far: ${ctx.historyLength}`;
+    if (ctx.recentHistory.length > 0) {
+      ctx.recentHistory.slice(-2).forEach((h, i) => {
+        prompt += `\n- Recent Q${i+1}: ${h.question}`;
+        if (h.answerSummary) prompt += ` → (Answered about ${h.topic || h.qType})`;
+      });
+    }
+    prompt += '\n=== END CONTEXT ===';
+  }
+
+  if (isFU) {
+    prompt += `\n\nFOLLOW-UP INSTRUCTION:
+This is a follow-up to the previous question about "${ctx.lastQuestion || ctx.topic || 'the topic'}".
+- Give a CONCISE, DIRECT answer (under 100 words).
+- Do NOT re-explain what was already said.
+- Focus ONLY on the new aspect being asked.
+- Reference the previous topic naturally without repeating it.`;
+  } else {
+    prompt += `\n\nQUESTION TYPE: ${qType.toUpperCase()}
+${typeInstructions[qType] || typeInstructions.general}`;
+  }
+
+  if (CFG.jobDesc && CFG.jobDesc.trim().length > 10) {
+    prompt += `\n\n=== JOB DESCRIPTION (reference for relevance) ===
+${CFG.jobDesc.slice(0, 1000)}
+=== END JD ===
+Tailor answers to match the skills and requirements in this job description when relevant.`;
+  }
+
+  if (DOCS.length > 0) {
+    prompt += `\n\n=== ADDITIONAL CONTEXT DOCUMENTS ===
+${DOCS.map(d => `[${d.name}]: ${d.text}`).join('\n---\n').slice(0, 2000)}
+=== END DOCUMENTS ===
+Reference these documents when relevant to the question.`;
+  }
+
+  if (RESUME.raw && (qType === 'behavioral' || qType === 'general')) {
+    prompt += `\n\n=== CANDIDATE PROFILE (never output this directly) ===
+Name: ${RESUME.name}
+Skills: ${RESUME.skills.join(', ')}
+Experience: ${RESUME.experience.slice(0, 5).join(' | ')}
+=== END PROFILE ===
+For personal questions: first person using candidate's background. For technical: answer from knowledge.`;
+  }
+
+  return prompt;
+}
+
+// ── 5. UPGRADED AUTO-ANSWER WITH 1.5s DEBOUNCE ─────────────────────────────
+
+const AUTO_CFG = {
+  MIN_QUESTION_WORDS: 3,
+  SILENCE_MS: 1500,
+  DEBOUNCE_MS: 400,
+  MIN_TRANSCRIPT_LEN: 10,
+  COOLDOWN_MS: 3000,
+};
+let autoLastTrigger = 0;
+let autoSilenceStart = 0;
+
+function upgradeAutoTrigger() {
+  if (!AUTO_MODE || !MIC.isRecording) return;
+  if (Date.now() - autoLastTrigger < AUTO_CFG.COOLDOWN_MS) return;
+
+  const currentText = (dgFinalText + ' ' + dgInterimText).trim();
+  if (currentText.length < AUTO_CFG.MIN_TRANSCRIPT_LEN) return;
+
+  const question = extractQuestion(currentText);
+  if (!question || question.split(/\s+/).length < AUTO_CFG.MIN_QUESTION_WORDS) return;
+  if (question === lastDetectedQuestion) return;
+
+  autoSilenceStart = Date.now();
+  clearTimeout(autoSilenceTimer);
+
+  autoSilenceTimer = setTimeout(() => {
+    if (!AUTO_MODE || !MIC.isRecording) return;
+    if (Date.now() - autoLastTrigger < AUTO_CFG.COOLDOWN_MS) return;
+
+    const finalCheck = extractQuestion(dgFinalText);
+    if (!finalCheck || finalCheck.split(/\s+/).length < AUTO_CFG.MIN_QUESTION_WORDS) return;
+
+    const timeSinceLastSpeech = Date.now() - MIC.lastSpeechTime;
+    if (timeSinceLastSpeech < 1000) return;
+
+    console.log('[AutoAnswer] Firing after 1.5s silence:', finalCheck);
+    autoLastTrigger = Date.now();
+    lastDetectedQuestion = finalCheck;
+    generateAnswer(finalCheck);
+  }, AUTO_CFG.SILENCE_MS);
+}
+
+// ── 6. OPTIMIZED TRANSCRIPT UPDATE (diff-based) ─────────────────────────────
+
+let _lastRenderedTx = '';
+
+function updateUIOptimized(text) {
+  const full = (text || '').trim();
+  if (full === _lastRenderedTx) return;
+  _lastRenderedTx = full;
+  const trimmed = full.length > MAX_UI_CHARS ? full.slice(-MAX_UI_CHARS) : full;
+
+  if (dgUiDebounce) cancelAnimationFrame(dgUiDebounce);
+  dgUiDebounce = requestAnimationFrame(() => {
+    const targets = [document.getElementById('mTxText'), document.getElementById('txText')];
+    for (const el of targets) {
+      if (!el) continue;
+      if (el.tagName === 'TEXTAREA') el.value = trimmed;
+      else el.innerText = trimmed;
+      el.scrollTop = el.scrollHeight;
+    }
+    const len = full.length;
+    if (txChars)  txChars.textContent  = len + ' chars';
+    if (mTxChars) mTxChars.textContent = len + ' chars';
+  });
+}
+
+// ══════════════════════════════
+// GENERATE (manual trigger) — Intelligence-Enhanced
+// ══════════════════════════════
+async function generate() {
+  let question = getLastQuestion();
+  if (!question) {
+    const rawText = getQ();
+    if (!rawText) {
+      setStatus('Say or type a question first', 'error');
+      showToast('Type or speak a question first');
+      return;
+    }
+    question = extractQuestion(rawText);
+  }
+  if (!getApiKey()) {
+    setStatus('Enter your API key', 'error');
+    showToast('Enter API key in Settings ⚙');
+    openSettings();
+    return;
+  }
+  if (!question || question.trim().length < 3) {
+    setStatus('No valid question detected', 'error');
+    showToast('Could not extract a question — try rephrasing');
+    return;
+  }
+  const aiQuery = buildAIQuery(question);
+  console.log('FINAL QUESTION:', aiQuery.question, '| FollowUp:', aiQuery.isFollowUp);
+  await generateAnswer(aiQuery.question, aiQuery);
+}
+
+// ══════════════════════════════
+// CONTEXT-AWARE MESSAGES BUILDER
+// ══════════════════════════════
+function buildMessagesWithContext(question, qType, aiQuery) {
+  const systemPrompt = buildPromptWithContext(qType, aiQuery);
+  const msgs = [{ role: 'system', content: systemPrompt }];
+  if (MEMORY.length > 0) msgs.push(...MEMORY);
+  if (aiQuery && aiQuery.isFollowUp && CTX.lastQuestion && CTX.lastAnswer) {
+    msgs.push({ role: 'user', content: CTX.lastQuestion });
+    msgs.push({ role: 'assistant', content: CTX.lastAnswer.slice(0, 400) + '...' });
+  }
+  msgs.push({ role: 'user', content: question });
+  return msgs;
+}
+
+async function streamAnswer(messages, bodyEl, skelEl, isMob, onChunk) {
+  const key = getApiKey();
+  let url, headers, body;
+
+  if (CFG.provider === 'groq') {
+    url = 'https://api.groq.com/openai/v1/chat/completions';
+    headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` };
+  } else if (CFG.provider === 'openai') {
+    url = 'https://api.openai.com/v1/chat/completions';
+    headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` };
+  } else {
+    url = (document.getElementById('ollamaUrl')?.value.trim() || 'http://localhost:11434') + '/api/chat';
+    headers = { 'Content-Type': 'application/json' };
+  }
+
+  const maxTokens = CFG.mode === 'detailed' ? 700 : CFG.mode === 'code' ? 800 : 500;
+  body = CFG.provider === 'ollama'
+    ? JSON.stringify({ model: CFG.model, messages, stream: true })
+    : JSON.stringify({ model: CFG.model, messages, stream: true, max_tokens: maxTokens, temperature: 0.6 });
+
+  const res = await fetch(url, { method: 'POST', headers, body });
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.error?.message || `HTTP ${res.status}`);
+  }
+
+  const reader = res.body.getReader();
+  const dec    = new TextDecoder();
+  let   full   = '';
+  let   first  = true;
+  let   lastRender = 0;
+  const RENDER_MS  = 33;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    for (const line of dec.decode(value, { stream: true }).split('\n')) {
+      let delta = '';
+      if (CFG.provider === 'ollama') {
+        if (!line.trim()) continue;
+        try { const d = JSON.parse(line); delta = d.message?.content || ''; } catch {}
+      } else {
+        if (!line.startsWith('data: ')) continue;
+        const raw = line.slice(6).trim();
+        if (raw === '[DONE]') break;
+        try { const d = JSON.parse(raw); delta = d.choices?.[0]?.delta?.content || ''; } catch {}
+      }
+
+      if (!delta) continue;
+      full += delta;
+      onChunk(delta);
+
+      if (first) {
+        if (skelEl) skelEl.style.display = 'none';
+        bodyEl.style.display = 'block';
+        first = false;
+      }
+
+      const now = Date.now();
+      if (now - lastRender >= RENDER_MS) {
+        bodyEl.innerHTML = render(full, isMob) + '<span class="cursor"></span>';
+        lastRender = now;
+        // Auto-scroll container during streaming
+        const scroller = isMob ? document.getElementById('mAnswers') : document.getElementById('answers');
+        if (scroller) scroller.scrollTop = scroller.scrollHeight;
+      }
+    }
+  }
+
+  bodyEl.innerHTML = render(full, isMob);
+
+  // Final scroll after render completes
+  const scroller = isMob ? document.getElementById('mAnswers') : document.getElementById('answers');
+  if (scroller) setTimeout(() => scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' }), 50);
+
+  // Add copy buttons to code blocks
+  bodyEl.querySelectorAll('pre').forEach(pre => {
+    if (pre.querySelector('.pre-copy')) return;
+    const btn = document.createElement('button');
+    btn.className = 'pre-copy';
+    btn.textContent = 'copy';
+    btn.onclick = () => {
+      navigator.clipboard.writeText(pre.querySelector('code')?.textContent || pre.textContent);
+      btn.textContent = 'copied!';
+      setTimeout(() => btn.textContent = 'copy', 2000);
+    };
+    pre.appendChild(btn);
+  });
+}
+
+// ════════════════════════════
+// RENDER ENGINE
+// ════════════════════════════
+function render(raw, isMob = false) {
+  if (!raw || !raw.trim()) return '';
+  const bodyClass = isMob ? 'm-a-body' : 'a-body';
+
+  const CODE_PH = '\x01CODE\x01';
+  const codeMap = [];
+  let s = raw.replace(/```([\w]*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+    codeMap.push({ lang: lang || '', code: code.trim() });
+    return CODE_PH + (codeMap.length - 1) + '\x01';
+  });
+
+  const openBlock = s.match(/```([\w]*)\n?([\s\S]*)$/);
+  let openHtml = '';
+  if (openBlock) {
+    s = s.slice(0, s.lastIndexOf('```'));
+    openHtml = `<pre><code>${esc(openBlock[2] || '')}</code></pre>`;
+  }
+
+  const lines = s.split('\n');
+  let html = '', inOl = false, inTbl = false, tblRows = [], paraCount = 0;
+
+  const flushTbl = () => {
+    if (!tblRows.length) return;
+    let t = '<table>';
+    tblRows.forEach((row, i) => {
+      if (/^\|[-:\s|]+\|$/.test(row)) return;
+      const cells = row.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+      const tag = i === 0 ? 'th' : 'td';
+      t += '<tr>' + cells.map(c => `<${tag}>${inlineFmt(c)}</${tag}>`).join('') + '</tr>';
+    });
+    html += t + '</table>';
+    tblRows = []; inTbl = false;
+  };
+
+  for (const line of lines) {
+    const t = line.trim();
+    if (t.startsWith(CODE_PH)) {
+      if (inOl) { html += '</ol>'; inOl = false; }
+      if (inTbl) flushTbl();
+      const idx = parseInt(t.replace(/\x01CODE\x01/, '').replace(/\x01.*/, ''));
+      const blk = codeMap[idx];
+      if (blk) html += `<pre><code>${esc(blk.code)}</code></pre>`;
+      continue;
+    }
+    if (t.startsWith('|') && t.includes('|', 1)) {
+      if (inOl) { html += '</ol>'; inOl = false; }
+      inTbl = true; tblRows.push(t); continue;
+    }
+    if (inTbl) flushTbl();
+    const lm = t.match(/^(\d+)[.)]\s+(.+)$/);
+    if (lm) {
+      if (!inOl) { html += '<ol>'; inOl = true; }
+      html += `<li>${inlineFmt(lm[2])}</li>`;
+      continue;
+    }
+    if (inOl) { html += '</ol>'; inOl = false; }
+    if (!t) continue;
+    const cls = paraCount === 0 ? ' class="intro"' : '';
+    html += `<p${cls}>${inlineFmt(t)}</p>`;
+    paraCount++;
+  }
+
+  if (inOl) html += '</ol>';
+  if (inTbl) flushTbl();
+  return html + openHtml;
+}
+
+function inlineFmt(text) {
+  return esc(text)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,     '<em>$1</em>')
+    .replace(/`([^`]+)`/g,     '<code>$1</code>');
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ════════════════════════════
+// TTS
+// ════════════════════════════
+function speakAnswer(bodyId) {
+  const el  = document.getElementById(bodyId);
+  const btn = document.getElementById('tts_' + bodyId);
+  if (!el) return;
+  if (window.speechSynthesis.speaking) {
+    window.speechSynthesis.cancel();
+    document.querySelectorAll('.btn-tts-play,.m-action-btn').forEach(b => b.classList.remove('speaking'));
+    if (btn) btn.textContent = '🔊 Speak';
+    return;
+  }
+  const text = el.innerText || el.textContent;
+  if (!text) return;
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.rate = 0.95; utt.lang = 'en-US';
+  utt.onstart = () => { if (btn) { btn.classList.add('speaking'); } };
+  utt.onend   = () => { if (btn) { btn.classList.remove('speaking'); } };
+  window.speechSynthesis.speak(utt);
+}
+
+// ════════════════════════════
+// COPY
+// ════════════════════════════
+function copyAnswer(bodyId) {
+  const el = document.getElementById(bodyId);
+  if (!el) return;
+  navigator.clipboard.writeText(el.innerText || el.textContent).then(() => showToast('Copied ✓'));
+}
+
+// ════════════════════════════
+// SESSION
+// ════════════════════════════
+function saveSession() {
+  try { localStorage.setItem('parakeet_session', JSON.stringify(SESSION.slice(-50))); } catch {}
+}
+function loadSession() {
+  try {
+    const saved = localStorage.getItem('parakeet_session');
+    if (saved) {
+      const data = JSON.parse(saved);
+      if (data.length > 0) setStatus(`Welcome back — ${data.length} Q&As saved`, 'ok');
+    }
+  } catch {}
+}
+function exportJSON() {
+  if (!SESSION.length) { showToast('No answers yet'); return; }
+  dlBlob(new Blob([JSON.stringify(SESSION, null, 2)], { type: 'application/json' }), 'parakeet_session.json');
+  showToast('Exported JSON ✓');
+}
+function exportTXT() {
+  if (!SESSION.length) { showToast('No answers yet'); return; }
+  const text = SESSION.map((s, i) => `Q${i+1} [${s.type}]: ${s.q}\n\nA: ${s.a}\n\n${'─'.repeat(60)}\n`).join('\n');
+  dlBlob(new Blob([text], { type: 'text/plain' }), 'parakeet_session.txt');
+  showToast('Exported TXT ✓');
+}
+function dlBlob(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  URL.revokeObjectURL(a.href);
+}
+function clearAnswers() {
+  // Desktop
+  if (answersEl) {
+    answersEl.innerHTML = '';
+    if (emptyState) { answersEl.appendChild(emptyState); emptyState.style.display = 'flex'; }
+  }
+  // Mobile
+  const ml = document.getElementById('mAnswersList');
+  const me = document.getElementById('mEmpty');
+  if (ml) {
+    ml.innerHTML = '';
+    if (me) { ml.appendChild(me); me.style.display = 'flex'; }
+  }
+  MEMORY.length = 0;
+  updateMemoryUI();
+  if (ansCount)  ansCount.textContent  = '';
+  if (mAnsCount) mAnsCount.textContent = '';
+  setStatus('Cleared', '');
+}
+
+// ════════════════════════════
+// HELPERS
+// ════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+function setStatus(msg, type='') {
+  if (statusEl) { statusEl.textContent = msg; statusEl.className = 'd-status-bar' + (type ? ' ' + type : ''); }
+}
+
+// Enter key — desktop
+txEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); generate(); }
+});
+txEl.addEventListener('input', () => {
+  const len = txEl.innerText.length;
+  if (txChars)  txChars.textContent  = len + ' chars';
+  if (mTxChars) mTxChars.textContent = len + ' chars';
+});
+
+// Mobile tx sync
+mTxEl.addEventListener('input', () => {
+  const len = mTxEl.innerText.length;
+  if (txChars)  txChars.textContent  = len + ' chars';
+  if (mTxChars) mTxChars.textContent = len + ' chars';
+});
+</script>
+
+<!-- ══ LOCALHOST GUIDE MODAL ══ -->
+<div id="lhModal" onclick="if(event.target===this)closeLhModal()">
+  <div class="lh-sheet">
+    <div class="lh-handle"></div>
+    <div class="lh-title">&#127919; Fix Mic on Android (Local)</div>
+    <div class="lh-sub">Android Chrome blocks mic for local files. The fix: serve the file via <strong>localhost</strong> — Chrome treats it as secure. Pick the easiest method below:</div>
+
+    <!-- Method 1: HTTP Server app -->
+    <div class="lh-method">
+      <div class="lh-method-title">
+        &#128242; HTTP Server App
+        <span class="lh-badge easy">Easiest</span>
+      </div>
+      <ol class="lh-steps">
+        <li><span class="lh-step-num">1</span>Install <strong>"Simple HTTP Server"</strong> from Play Store (free, by Phlox)<br><a class="lh-store-link" href="https://play.google.com/store/apps/details?id=com.phlox.simpleserver" target="_blank">&#8599; Open Play Store link</a></li>
+        <li><span class="lh-step-num">2</span>Open the app &rarr; tap the folder icon &rarr; pick the folder with your HTML file</li>
+        <li><span class="lh-step-num">3</span>Tap <strong>Start</strong> — note the port (e.g. 8080)</li>
+        <li><span class="lh-step-num">4</span>Open Chrome and go to:<br><code class="lh-code">http://localhost:8080/rajprep-ai-v12-fixed.html</code></li>
+        <li><span class="lh-step-num">5</span>Allow mic when Chrome asks &rarr; mic works!</li>
+      </ol>
+    </div>
+
+    <!-- Method 2: Termux -->
+    <div class="lh-method">
+      <div class="lh-method-title">
+        &#128187; Termux (Python server)
+        <span class="lh-badge">For Tech Users</span>
+      </div>
+      <ol class="lh-steps">
+        <li><span class="lh-step-num">1</span>Install <strong>Termux</strong> from F-Droid or Play Store</li>
+        <li><span class="lh-step-num">2</span>Run: <code class="lh-code">pkg install python && cd /sdcard && python -m http.server 8080</code></li>
+        <li><span class="lh-step-num">3</span>Open Chrome: <code class="lh-code">http://localhost:8080/rajprep-ai-v12-fixed.html</code></li>
+      </ol>
+    </div>
+
+    <!-- Method 3: GitHub Pages -->
+    <div class="lh-method">
+      <div class="lh-method-title">
+        &#127760; GitHub Pages (Free HTTPS)
+        <span class="lh-badge">Permanent Fix</span>
+      </div>
+      <ol class="lh-steps">
+        <li><span class="lh-step-num">1</span>Create a free account at <strong>github.com</strong></li>
+        <li><span class="lh-step-num">2</span>Create a new repo &rarr; upload this HTML file</li>
+        <li><span class="lh-step-num">3</span>Go to Settings &rarr; Pages &rarr; enable from main branch</li>
+        <li><span class="lh-step-num">4</span>Access via <strong>https://yourname.github.io/repo/file.html</strong> — mic always works!</li>
+      </ol>
+    </div>
+
+    <button class="lh-close" onclick="closeLhModal()">Got it &#10003;</button>
+  </div>
+</div>
+
+</body>
+</html>
